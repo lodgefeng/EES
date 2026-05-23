@@ -1,0 +1,133 @@
+@echo off
+setlocal EnableExtensions EnableDelayedExpansion
+
+set "APP_DIR=%~dp0"
+for %%I in ("%APP_DIR%.") do set "APP_DIR=%%~fI"
+set "VENV_DIR=%APP_DIR%\python_venv"
+set "VENV_PY=%VENV_DIR%\Scripts\python.exe"
+set "LOG_DIR=%LOCALAPPDATA%\Creolight\AR_Camera_Ollama"
+set "LOG_FILE=%LOG_DIR%\repair_python_venv.log"
+set "LAUNCHER=%APP_DIR%\launch_ar_camera_ollama.bat"
+
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
+
+call :log "Repair started."
+call :log "App directory: %APP_DIR%"
+
+cd /d "%APP_DIR%" || (
+  call :log "ERROR: Could not change to app directory."
+  echo ERROR: Could not change to "%APP_DIR%".
+  pause
+  exit /b 1
+)
+
+if exist "%VENV_PY%" (
+  call :log "Existing virtual environment found."
+  "%VENV_PY%" -c "import sys; print(sys.executable)" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "WARNING: Existing python_venv is not usable."
+  ) else (
+    goto install_requirements
+  )
+)
+
+call :find_python
+if not defined PY_CMD (
+  call :log "ERROR: Could not find Python. Install Python 3.9+ and enable the py launcher or PATH."
+  echo ERROR: Could not find Python.
+  echo.
+  echo Install Python 3.9 or newer from https://www.python.org/downloads/windows/
+  echo During installation, enable "Add python.exe to PATH".
+  echo.
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+
+call :log "Using Python command: %PY_CMD%"
+
+if not exist "%VENV_DIR%" (
+  call :log "Creating virtual environment: %VENV_DIR%"
+  %PY_CMD% -m venv "%VENV_DIR%" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "ERROR: Failed to create python_venv."
+    echo ERROR: Failed to create python_venv.
+    echo.
+    echo If this app is installed under Program Files, run this file as Administrator,
+    echo or reinstall the app into a writable folder such as:
+    echo   %LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama
+    echo.
+    echo Log: "%LOG_FILE%"
+    pause
+    exit /b 1
+  )
+)
+
+if not exist "%VENV_PY%" (
+  call :log "ERROR: Virtual environment was created but python.exe is missing."
+  echo ERROR: "%VENV_PY%" does not exist.
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+
+:install_requirements
+call :log "Upgrading pip."
+"%VENV_PY%" -m pip install --upgrade pip setuptools wheel >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  call :log "ERROR: Failed to upgrade pip."
+  echo ERROR: Failed to upgrade pip.
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+
+if exist "%APP_DIR%\requirements.txt" (
+  call :log "Installing requirements.txt."
+  "%VENV_PY%" -m pip install -r "%APP_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "ERROR: Failed to install requirements.txt."
+    echo ERROR: Failed to install requirements.txt.
+    echo Log: "%LOG_FILE%"
+    pause
+    exit /b 1
+  )
+) else (
+  call :log "No requirements.txt found; skipping dependency install."
+)
+
+if exist "%LAUNCHER%" (
+  call :log "Creating desktop shortcut."
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcutPath = [IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'AR Camera Ollama.lnk'); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($shortcutPath); $shortcut.TargetPath = $env:LAUNCHER; $shortcut.WorkingDirectory = $env:APP_DIR; $shortcut.Save()" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "WARNING: Could not create desktop shortcut."
+  )
+) else (
+  call :log "Launcher not found; skipping desktop shortcut creation."
+)
+
+call :log "Repair completed successfully."
+echo.
+echo Repair completed successfully.
+echo Log: "%LOG_FILE%"
+echo.
+echo If the desktop shortcut still does not start the app, run:
+echo   "%LAUNCHER%"
+echo.
+pause
+exit /b 0
+
+:find_python
+set "PY_CMD="
+for %%C in ("py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
+  if not defined PY_CMD (
+    %%~C -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" >nul 2>&1
+    if not errorlevel 1 set "PY_CMD=%%~C"
+  )
+)
+exit /b 0
+
+:log
+echo [%date% %time%] %~1
+>> "%LOG_FILE%" echo [%date% %time%] %~1
+exit /b 0
