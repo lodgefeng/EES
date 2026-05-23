@@ -5,6 +5,7 @@ set "APP_DIR=%~dp0"
 for %%I in ("%APP_DIR%.") do set "APP_DIR=%%~fI"
 set "VENV_DIR=%APP_DIR%\python_venv"
 set "VENV_PY=%VENV_DIR%\Scripts\python.exe"
+set "NEED_RECREATE=0"
 set "LOG_DIR=%LOCALAPPDATA%\Creolight\AR_Camera_Ollama"
 set "LOG_FILE=%LOG_DIR%\repair_python_venv.log"
 set "LAUNCHER=%APP_DIR%\launch_ar_camera_ollama.bat"
@@ -26,9 +27,15 @@ if exist "%VENV_PY%" (
   "%VENV_PY%" -c "import sys; print(sys.executable)" >> "%LOG_FILE%" 2>&1
   if errorlevel 1 (
     call :log "WARNING: Existing python_venv is not usable."
+    set "NEED_RECREATE=1"
   ) else (
     goto install_requirements
   )
+)
+
+if exist "%VENV_DIR%" if not exist "%VENV_PY%" (
+  call :log "WARNING: python_venv exists but Scripts\python.exe is missing."
+  set "NEED_RECREATE=1"
 )
 
 call :find_python
@@ -45,6 +52,21 @@ if not defined PY_CMD (
 )
 
 call :log "Using Python command: %PY_CMD%"
+
+if "%NEED_RECREATE%"=="1" (
+  set "BACKUP_DIR=%APP_DIR%\python_venv_broken_%RANDOM%"
+  call :log "Backing up broken virtual environment to: !BACKUP_DIR!"
+  move "%VENV_DIR%" "!BACKUP_DIR!" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "ERROR: Could not move broken python_venv out of the way."
+    echo ERROR: Could not move broken python_venv.
+    echo.
+    echo Close any running AR_Camera_Ollama windows and run this file as Administrator.
+    echo Log: "%LOG_FILE%"
+    pause
+    exit /b 1
+  )
+)
 
 if not exist "%VENV_DIR%" (
   call :log "Creating virtual environment: %VENV_DIR%"
