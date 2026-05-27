@@ -9,6 +9,19 @@ available under:
 tools/windows
 ```
 
+If the Windows project folder does not have these new scripts yet, run this from
+the downloaded helper bundle:
+
+```text
+复制新脚本到项目.bat
+```
+
+It copies the root entrypoints and `tools\windows` helpers into:
+
+```text
+C:\Users\lodge\AR_Camera_Ollama
+```
+
 To integrate the repaired copy back into the current project checkout:
 
 ```text

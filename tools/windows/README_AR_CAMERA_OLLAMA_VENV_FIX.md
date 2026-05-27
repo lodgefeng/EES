@@ -9,6 +9,24 @@ C:\Program Files\Creolight\AR_Camera_Ollama
 
 ## Files
 
+- `复制新脚本到项目.bat`
+  - Copy helper for machines where `C:\Users\lodge\AR_Camera_Ollama` does not
+    yet contain the new root scripts or `tools\windows`.
+  - Run it from the downloaded helper bundle. It copies:
+
+    ```text
+    build_ar_camera_ollama_installer.bat
+    制作安装包.bat
+    制作安装包_无需Python检测.bat
+    tools\windows\*
+    ```
+
+  - Default target:
+
+    ```text
+    C:\Users\lodge\AR_Camera_Ollama
+    ```
+
 - `build_ar_camera_ollama_installer.bat`
   - Builds a copyable installer package on the D drive.
   - Defaults to this repaired source folder:
