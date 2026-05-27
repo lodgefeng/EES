@@ -143,6 +143,9 @@ computer and installed there.
 If the project root contains `build_ar_camera_ollama_installer.bat`, you can run
 that root script directly. It calls the implementation in `tools\windows`.
 
+If the project root contains the Chinese alias `制作安装包.bat`, it is the same
+package-build entrypoint and can be double-clicked instead.
+
 1. Make sure the repaired copy exists at:
 
    ```text
