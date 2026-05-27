@@ -25,6 +25,15 @@ project dir:  C:\Users\lodge\AR_Camera_Ollama
 To build a copyable installer package on the D drive:
 
 ```text
+制作安装包_无需Python检测.bat
+```
+
+This is the recommended entrypoint if an older local package script fails with
+`Python 3.10+ required` or detects Anaconda.
+
+You can also use:
+
+```text
 制作安装包.bat
 ```
 

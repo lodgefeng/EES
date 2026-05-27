@@ -146,6 +146,17 @@ that root script directly. It calls the implementation in `tools\windows`.
 If the project root contains the Chinese alias `制作安装包.bat`, it is the same
 package-build entrypoint and can be double-clicked instead.
 
+If an older local `制作安装包.bat` fails with `Python 3.10+ required` or detects
+Anaconda, use the no-portable-venv entrypoint instead:
+
+```text
+制作安装包_无需Python检测.bat
+```
+
+This package flow does not create `python_venv` while building the package. The
+generated `install.bat` recreates `python_venv` on the target computer during
+installation.
+
 1. Make sure the repaired copy exists at:
 
    ```text
