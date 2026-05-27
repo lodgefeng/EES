@@ -27,6 +27,17 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     C:\Users\lodge\AR_Camera_Ollama
     ```
 
+- `下载并安装新脚本.bat`
+  - Bootstrap helper for the case where only one script was copied and
+    `复制新脚本到项目.bat` reports:
+
+    ```text
+    ERROR: Missing source tools folder
+    ```
+
+  - Downloads the helper branch zip from GitHub, extracts it under `%TEMP%`, and
+    calls `复制新脚本到项目.bat` from the extracted full helper bundle.
+
 - `build_ar_camera_ollama_installer.bat`
   - Builds a copyable installer package on the D drive.
   - Defaults to this repaired source folder:

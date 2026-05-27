@@ -16,6 +16,13 @@ the downloaded helper bundle:
 复制新脚本到项目.bat
 ```
 
+If you only copied that one file and it reports missing `tools\windows`, use the
+bootstrap downloader instead:
+
+```text
+下载并安装新脚本.bat
+```
+
 It copies the root entrypoints and `tools\windows` helpers into:
 
 ```text
