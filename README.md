@@ -25,6 +25,12 @@ project dir:  C:\Users\lodge\AR_Camera_Ollama
 To build a copyable installer package on the D drive:
 
 ```text
+build_ar_camera_ollama_installer.bat
+```
+
+This root script calls the implementation under:
+
+```text
 tools/windows/build_ar_camera_ollama_installer.bat
 ```
 

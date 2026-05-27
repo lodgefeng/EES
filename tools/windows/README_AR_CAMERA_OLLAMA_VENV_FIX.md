@@ -140,6 +140,9 @@ C:\Program Files\Creolight\AR_Camera_Ollama
 Use this flow when you want one folder or zip that can be copied to a new
 computer and installed there.
 
+If the project root contains `build_ar_camera_ollama_installer.bat`, you can run
+that root script directly. It calls the implementation in `tools\windows`.
+
 1. Make sure the repaired copy exists at:
 
    ```text
