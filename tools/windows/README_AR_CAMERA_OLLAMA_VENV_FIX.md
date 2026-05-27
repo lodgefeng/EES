@@ -144,7 +144,11 @@ C:\Program Files\Creolight\AR_Camera_Ollama
   - Finds Python 3.9 or newer.
   - Creates `python_venv` if it is missing.
   - Upgrades pip/setuptools/wheel.
-  - Installs `requirements.txt` if the app folder has one.
+  - Installs dependency files from `requirements.txt`, `app\requirements.txt`,
+    and `requirements\*.txt` if present.
+  - If no dependency file provides them, installs common runtime packages needed
+    by the camera/Ollama app: `opencv-python` for `cv2`, `pillow` for `PIL`, and
+    `requests`.
   - Creates a desktop shortcut named `AR Camera Ollama.lnk` that starts in the
     app folder.
   - Writes a repair log to:
@@ -423,6 +427,10 @@ relative import with no known parent package`, update the launcher helpers and
 rebuild the installer package. Nested app entries such as `app\main.py` must be
 started with Python module syntax (`python -m app.main`) so relative imports like
 `from . import bootstrap_dll` work correctly.
+
+If launch reports `ModuleNotFoundError: No module named 'cv2'`, update the helper
+scripts, rebuild the package, and reinstall. The repair script now installs
+`opencv-python` automatically when `cv2` is missing.
 
 ## Recommended installer fix
 

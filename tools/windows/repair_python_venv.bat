@@ -104,19 +104,35 @@ if errorlevel 1 (
   exit /b 1
 )
 
+set "REQ_FOUND=0"
 if exist "%APP_DIR%\requirements.txt" (
-  call :log "Installing requirements.txt."
-  "%VENV_PY%" -m pip install -r "%APP_DIR%\requirements.txt" >> "%LOG_FILE%" 2>&1
-  if errorlevel 1 (
-    call :log "ERROR: Failed to install requirements.txt."
-    echo ERROR: Failed to install requirements.txt.
-    echo Log: "%LOG_FILE%"
-    pause
-    exit /b 1
-  )
-) else (
-  call :log "No requirements.txt found; skipping dependency install."
+  set "REQ_FOUND=1"
+  call :install_requirements_file "%APP_DIR%\requirements.txt"
+  if errorlevel 1 exit /b 1
 )
+if exist "%APP_DIR%\app\requirements.txt" (
+  set "REQ_FOUND=1"
+  call :install_requirements_file "%APP_DIR%\app\requirements.txt"
+  if errorlevel 1 exit /b 1
+)
+if exist "%APP_DIR%\requirements\*.txt" (
+  for %%R in ("%APP_DIR%\requirements\*.txt") do (
+    set "REQ_FOUND=1"
+    call :install_requirements_file "%%~fR"
+    if errorlevel 1 exit /b 1
+  )
+)
+
+if "%REQ_FOUND%"=="0" call :log "No requirements.txt found; checking common runtime packages."
+
+call :ensure_python_package "cv2" "opencv-python"
+if errorlevel 1 exit /b 1
+
+call :ensure_python_package "PIL" "pillow"
+if errorlevel 1 exit /b 1
+
+call :ensure_python_package "requests" "requests"
+if errorlevel 1 exit /b 1
 
 if exist "%LAUNCHER%" (
   call :log "Creating desktop shortcut."
@@ -137,6 +153,40 @@ echo If the desktop shortcut still does not start the app, run:
 echo   "%LAUNCHER%"
 echo.
 pause
+exit /b 0
+
+:install_requirements_file
+set "REQ_FILE=%~1"
+call :log "Installing requirements file: %REQ_FILE%"
+"%VENV_PY%" -m pip install -r "%REQ_FILE%" >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  call :log "ERROR: Failed to install requirements file: %REQ_FILE%"
+  echo ERROR: Failed to install requirements file:
+  echo   "%REQ_FILE%"
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+exit /b 0
+
+:ensure_python_package
+set "IMPORT_NAME=%~1"
+set "PACKAGE_NAME=%~2"
+"%VENV_PY%" -c "import %IMPORT_NAME%" >nul 2>&1
+if not errorlevel 1 (
+  call :log "Python package already available: %IMPORT_NAME%"
+  exit /b 0
+)
+call :log "Installing missing Python package: %PACKAGE_NAME% for import %IMPORT_NAME%"
+"%VENV_PY%" -m pip install "%PACKAGE_NAME%" >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  call :log "ERROR: Failed to install Python package: %PACKAGE_NAME%"
+  echo ERROR: Failed to install Python package:
+  echo   "%PACKAGE_NAME%"
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
 exit /b 0
 
 :find_python
