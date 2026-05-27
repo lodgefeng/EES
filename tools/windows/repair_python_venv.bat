@@ -125,23 +125,15 @@ if exist "%APP_DIR%\requirements\*.txt" (
 
 if "%REQ_FOUND%"=="0" call :log "No requirements.txt found; checking common runtime packages."
 
-call :ensure_python_package "cv2" "opencv-python"
-if errorlevel 1 exit /b 1
-
-call :ensure_python_package "PIL" "pillow"
-if errorlevel 1 exit /b 1
-
-call :ensure_python_package "requests" "requests"
-if errorlevel 1 exit /b 1
-
-call :ensure_python_package "serial" "pyserial"
-if errorlevel 1 exit /b 1
-
-call :ensure_python_package "PySide6" "PySide6"
-if errorlevel 1 exit /b 1
-
-call :ensure_python_package "numpy" "numpy"
-if errorlevel 1 exit /b 1
+call :log "Installing common runtime packages."
+"%VENV_PY%" -m pip install opencv-python pillow requests pyserial PySide6 numpy >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  call :log "ERROR: Failed to install common runtime packages."
+  echo ERROR: Failed to install common runtime packages.
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
 
 if exist "%LAUNCHER%" (
   call :log "Creating desktop shortcut."
@@ -172,26 +164,6 @@ if errorlevel 1 (
   call :log "ERROR: Failed to install requirements file: %REQ_FILE%"
   echo ERROR: Failed to install requirements file:
   echo   "%REQ_FILE%"
-  echo Log: "%LOG_FILE%"
-  pause
-  exit /b 1
-)
-exit /b 0
-
-:ensure_python_package
-set "IMPORT_NAME=%~1"
-set "PACKAGE_NAME=%~2"
-"%VENV_PY%" -c "import %IMPORT_NAME%" >nul 2>&1
-if not errorlevel 1 (
-  call :log "Python package already available: %IMPORT_NAME%"
-  exit /b 0
-)
-call :log "Installing missing Python package: %PACKAGE_NAME% for import %IMPORT_NAME%"
-"%VENV_PY%" -m pip install "%PACKAGE_NAME%" >> "%LOG_FILE%" 2>&1
-if errorlevel 1 (
-  call :log "ERROR: Failed to install Python package: %PACKAGE_NAME%"
-  echo ERROR: Failed to install Python package:
-  echo   "%PACKAGE_NAME%"
   echo Log: "%LOG_FILE%"
   pause
   exit /b 1

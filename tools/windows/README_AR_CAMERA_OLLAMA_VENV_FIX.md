@@ -38,6 +38,16 @@ C:\Program Files\Creolight\AR_Camera_Ollama
   - Downloads the helper branch zip from GitHub, extracts it under `%TEMP%`, and
     calls `复制新脚本到项目.bat` from the extracted full helper bundle.
 
+If install fails with:
+
+```text
+The system cannot find the batch label specified - ensure_python_package
+```
+
+update the helper scripts, rebuild the package, and reinstall. Newer helpers
+install the common runtime packages in one pip command and no longer use that
+batch label.
+
 - `build_ar_camera_ollama_installer.bat`
   - Builds a copyable installer package on the D drive.
   - Defaults to this repaired source folder:
