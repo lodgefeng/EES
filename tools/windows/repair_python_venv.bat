@@ -6,6 +6,8 @@ for %%I in ("%APP_DIR%.") do set "APP_DIR=%%~fI"
 set "VENV_DIR=%APP_DIR%\python_venv"
 set "VENV_PY=%VENV_DIR%\Scripts\python.exe"
 set "NEED_RECREATE=0"
+set "WHEEL_DIR=%APP_DIR%\wheels"
+set "COMMON_PACKAGES=opencv-python pillow requests pyserial PySide6 numpy"
 set "LOG_DIR=%LOCALAPPDATA%\Creolight\AR_Camera_Ollama"
 set "LOG_FILE=%LOG_DIR%\repair_python_venv.log"
 set "LAUNCHER=%APP_DIR%\launch_ar_camera_ollama.bat"
@@ -126,11 +128,20 @@ if exist "%APP_DIR%\requirements\*.txt" (
 if "%REQ_FOUND%"=="0" call :log "No requirements.txt found; checking common runtime packages."
 
 call :log "Installing common runtime packages."
-"%VENV_PY%" -m pip install opencv-python pillow requests pyserial PySide6 numpy >> "%LOG_FILE%" 2>&1
+if exist "%WHEEL_DIR%\*.whl" (
+  call :log "Using local wheel directory: %WHEEL_DIR%"
+  "%VENV_PY%" -m pip install --find-links "%WHEEL_DIR%" %COMMON_PACKAGES% >> "%LOG_FILE%" 2>&1
+) else (
+  call :log "No local wheels found; using configured pip index."
+  "%VENV_PY%" -m pip install %COMMON_PACKAGES% >> "%LOG_FILE%" 2>&1
+)
 if errorlevel 1 (
   call :log "ERROR: Failed to install common runtime packages."
   echo ERROR: Failed to install common runtime packages.
   echo Log: "%LOG_FILE%"
+  echo.
+  echo Last pip log lines:
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "if (Test-Path $env:LOG_FILE) { Get-Content $env:LOG_FILE -Tail 40 }"
   pause
   exit /b 1
 )

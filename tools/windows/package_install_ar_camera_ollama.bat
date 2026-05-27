@@ -4,6 +4,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "PACKAGE_DIR=%~dp0"
 for %%I in ("%PACKAGE_DIR%.") do set "PACKAGE_DIR=%%~fI"
 set "APP_SOURCE=%PACKAGE_DIR%\app"
+set "WHEEL_SOURCE=%PACKAGE_DIR%\wheels"
 set "DEFAULT_INSTALL=%LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama"
 set "INSTALL_DIR=%~1"
 
@@ -66,6 +67,19 @@ if %ROBOCOPY_EXIT% GEQ 8 (
   exit /b %ROBOCOPY_EXIT%
 )
 call :log "Robocopy completed with code %ROBOCOPY_EXIT%."
+
+if exist "%WHEEL_SOURCE%\*.whl" (
+  call :log "Copying dependency wheels into install directory."
+  robocopy "%WHEEL_SOURCE%" "%INSTALL_DIR%\wheels" /MIR /R:2 /W:2 /NP /TEE /LOG+:"%LOG_FILE%"
+  set "ROBOCOPY_EXIT=%ERRORLEVEL%"
+  if !ROBOCOPY_EXIT! GEQ 8 (
+    call :log "ERROR: Failed to copy dependency wheels with code !ROBOCOPY_EXIT!."
+    echo ERROR: Failed to copy dependency wheels.
+    echo Log: "%LOG_FILE%"
+    pause
+    exit /b !ROBOCOPY_EXIT!
+  )
+)
 
 call :copy_helper "repair_python_venv.bat"
 if errorlevel 1 exit /b 1

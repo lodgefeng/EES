@@ -48,6 +48,16 @@ update the helper scripts, rebuild the package, and reinstall. Newer helpers
 install the common runtime packages in one pip command and no longer use that
 batch label.
 
+If install fails with:
+
+```text
+ERROR: Failed to install common runtime packages.
+```
+
+open the repair log shown in the console. Newer helper packages include a
+`wheels` directory when the build computer can download dependencies, so the
+target computer can install dependencies from local wheel files first.
+
 - `build_ar_camera_ollama_installer.bat`
   - Builds a copyable installer package on the D drive.
   - Defaults to this repaired source folder:
@@ -69,6 +79,14 @@ batch label.
     ```
 
   - The package contains an `app` payload folder and a root `install.bat`.
+  - Tries to download dependency wheels into:
+
+    ```text
+    D:\AR_Camera_Ollama_installer\wheels
+    ```
+
+    If wheel download fails on the build computer, the package still builds and
+    the target computer will use normal pip installation.
   - If `package_install_ar_camera_ollama.bat` is missing from `tools\windows`,
     the builder generates a fallback `install.bat` automatically.
   - Excludes local/non-portable folders such as `python_venv`, `.venv`, `venv`,
@@ -91,6 +109,8 @@ batch label.
 
   - Runs `repair_python_venv.bat` after copying files so each new computer gets
     its own clean virtual environment.
+  - Copies package `wheels` into the install folder when present, so dependency
+    installation can use local wheel files.
   - Writes an install log to:
 
     ```text

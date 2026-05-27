@@ -17,6 +17,7 @@ for %%I in ("%SOURCE_DIR%.") do set "SOURCE_DIR=%%~fI"
 for %%I in ("%PACKAGE_DIR%.") do set "PACKAGE_DIR=%%~fI"
 
 set "PAYLOAD_DIR=%PACKAGE_DIR%\app"
+set "WHEEL_DIR=%PACKAGE_DIR%\wheels"
 set "ZIP_PATH=%PACKAGE_DIR%.zip"
 set "LOG_DIR=%LOCALAPPDATA%\Creolight\AR_Camera_Ollama"
 set "LOG_FILE=%LOG_DIR%\build_installer_package.log"
@@ -93,6 +94,8 @@ if errorlevel 1 exit /b 1
 call :copy_package_file "README_AR_CAMERA_OLLAMA_VENV_FIX.md" "README_AR_CAMERA_OLLAMA_VENV_FIX.md"
 if errorlevel 1 exit /b 1
 
+call :download_wheels
+
 call :log "Creating zip package if PowerShell Compress-Archive is available."
 if exist "%ZIP_PATH%" del /F /Q "%ZIP_PATH%" >> "%LOG_FILE%" 2>&1
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Compress-Archive -Path (Join-Path $env:PACKAGE_DIR '*') -DestinationPath $env:ZIP_PATH -Force" >> "%LOG_FILE%" 2>&1
@@ -118,6 +121,32 @@ echo   install.bat
 echo.
 echo Log: "%LOG_FILE%"
 pause
+exit /b 0
+
+:download_wheels
+if not exist "%WHEEL_DIR%" mkdir "%WHEEL_DIR%" >> "%LOG_FILE%" 2>&1
+call :find_download_python
+if not defined DOWNLOAD_PY (
+  call :log "WARNING: Could not find Python for wheel download; package will use online pip install on target."
+  exit /b 0
+)
+call :log "Downloading dependency wheels into: %WHEEL_DIR%"
+%DOWNLOAD_PY% -m pip download --dest "%WHEEL_DIR%" opencv-python pillow requests pyserial PySide6 numpy >> "%LOG_FILE%" 2>&1
+if errorlevel 1 (
+  call :log "WARNING: Wheel download failed; package will use online pip install on target."
+  exit /b 0
+)
+call :log "Wheel download completed."
+exit /b 0
+
+:find_download_python
+set "DOWNLOAD_PY="
+for %%C in ("py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
+  if not defined DOWNLOAD_PY (
+    %%~C -c "import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)" >nul 2>&1
+    if not errorlevel 1 set "DOWNLOAD_PY=%%~C"
+  )
+)
 exit /b 0
 
 :copy_or_generate_installer
@@ -147,6 +176,7 @@ echo setlocal EnableExtensions
 echo set "PACKAGE_DIR=%%~dp0"
 echo for %%%%I in ^("%%PACKAGE_DIR%%."^) do set "PACKAGE_DIR=%%%%~fI"
 echo set "APP_SOURCE=%%PACKAGE_DIR%%\app"
+echo set "WHEEL_SOURCE=%%PACKAGE_DIR%%\wheels"
 echo set "INSTALL_DIR=%%~1"
 echo if not defined INSTALL_DIR set "INSTALL_DIR=%%LOCALAPPDATA%%\Programs\Creolight\AR_Camera_Ollama"
 echo for %%%%I in ^("%%INSTALL_DIR%%."^) do set "INSTALL_DIR=%%%%~fI"
@@ -167,6 +197,11 @@ echo   echo ERROR: Failed to copy app payload. Robocopy exit code: %%ROBOCOPY_EX
 echo   echo Log: "%%LOG_FILE%%"
 echo   pause
 echo   exit /b %%ROBOCOPY_EXIT%%
+echo ^)
+echo if exist "%%WHEEL_SOURCE%%\*.whl" ^(
+echo   robocopy "%%WHEEL_SOURCE%%" "%%INSTALL_DIR%%\wheels" /MIR /R:2 /W:2 /NP /TEE /LOG+:"%%LOG_FILE%%"
+echo   set "ROBOCOPY_EXIT=%%ERRORLEVEL%%"
+echo   if %%ROBOCOPY_EXIT%% GEQ 8 exit /b %%ROBOCOPY_EXIT%%
 echo ^)
 echo copy /Y "%%PACKAGE_DIR%%\repair_python_venv.bat" "%%INSTALL_DIR%%\repair_python_venv.bat"
 echo copy /Y "%%PACKAGE_DIR%%\launch_ar_camera_ollama.bat" "%%INSTALL_DIR%%\launch_ar_camera_ollama.bat"
