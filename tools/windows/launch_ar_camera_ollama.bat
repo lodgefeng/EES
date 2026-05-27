@@ -72,8 +72,23 @@ if not defined ENTRY (
   exit /b 1
 )
 
-call :log "Starting entry file: %ENTRY%"
-"%VENV_PY%" "%APP_DIR%\%ENTRY%" >> "%LOG_FILE%" 2>&1
+set "MODULE="
+if /I "%ENTRY%"=="app\main.py" set "MODULE=app.main"
+if /I "%ENTRY%"=="app\app.py" set "MODULE=app.app"
+if /I "%ENTRY%"=="app\run.py" set "MODULE=app.run"
+if /I "%ENTRY%"=="app\ar_camera_ollama.py" set "MODULE=app.ar_camera_ollama"
+if /I "%ENTRY%"=="app\AR_Camera_Ollama.py" set "MODULE=app.AR_Camera_Ollama"
+if /I "%ENTRY%"=="app\camera_ollama.py" set "MODULE=app.camera_ollama"
+if /I "%ENTRY%"=="src\main.py" set "MODULE=src.main"
+if /I "%ENTRY%"=="src\app.py" set "MODULE=src.app"
+
+if defined MODULE (
+  call :log "Starting entry module: %MODULE%"
+  "%VENV_PY%" -m "%MODULE%" >> "%LOG_FILE%" 2>&1
+) else (
+  call :log "Starting entry file: %ENTRY%"
+  "%VENV_PY%" "%APP_DIR%\%ENTRY%" >> "%LOG_FILE%" 2>&1
+)
 set "EXIT_CODE=%ERRORLEVEL%"
 
 if not "%EXIT_CODE%"=="0" (

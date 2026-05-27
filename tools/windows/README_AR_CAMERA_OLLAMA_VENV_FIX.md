@@ -418,6 +418,12 @@ file is in a path the launcher does not recognize yet. The launcher prints the
 first Python files found under the install folder to help identify the correct
 entry.
 
+If launch finds `app\main.py` but Python reports `ImportError: attempted
+relative import with no known parent package`, update the launcher helpers and
+rebuild the installer package. Nested app entries such as `app\main.py` must be
+started with Python module syntax (`python -m app.main`) so relative imports like
+`from . import bootstrap_dll` work correctly.
+
 ## Recommended installer fix
 
 For a permanent fix in the real project installer:
