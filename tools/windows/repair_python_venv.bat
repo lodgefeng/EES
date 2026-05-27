@@ -134,6 +134,9 @@ if errorlevel 1 exit /b 1
 call :ensure_python_package "requests" "requests"
 if errorlevel 1 exit /b 1
 
+call :ensure_python_package "serial" "pyserial"
+if errorlevel 1 exit /b 1
+
 if exist "%LAUNCHER%" (
   call :log "Creating desktop shortcut."
   powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcutPath = [IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'AR Camera Ollama.lnk'); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($shortcutPath); $shortcut.TargetPath = $env:LAUNCHER; $shortcut.WorkingDirectory = $env:APP_DIR; $shortcut.Save()" >> "%LOG_FILE%" 2>&1

@@ -148,7 +148,7 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     and `requirements\*.txt` if present.
   - If no dependency file provides them, installs common runtime packages needed
     by the camera/Ollama app: `opencv-python` for `cv2`, `pillow` for `PIL`, and
-    `requests`.
+    `requests`, plus `pyserial` for `serial`.
   - Creates a desktop shortcut named `AR Camera Ollama.lnk` that starts in the
     app folder.
   - Writes a repair log to:
@@ -431,6 +431,10 @@ started with Python module syntax (`python -m app.main`) so relative imports lik
 If launch reports `ModuleNotFoundError: No module named 'cv2'`, update the helper
 scripts, rebuild the package, and reinstall. The repair script now installs
 `opencv-python` automatically when `cv2` is missing.
+
+If launch reports `ModuleNotFoundError: No module named 'serial'`, update the
+helper scripts, rebuild the package, and reinstall. The repair script now
+installs `pyserial` automatically when `serial` is missing.
 
 ## Recommended installer fix
 
