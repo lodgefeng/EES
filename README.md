@@ -22,6 +22,19 @@ fixed source: D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
 project dir:  C:\Users\lodge\AR_Camera_Ollama
 ```
 
+To build a copyable installer package on the D drive:
+
+```text
+tools/windows/build_ar_camera_ollama_installer.bat
+```
+
+The package output defaults to:
+
+```text
+D:\AR_Camera_Ollama_installer
+D:\AR_Camera_Ollama_installer.zip
+```
+
 For new computers, use:
 
 ```text

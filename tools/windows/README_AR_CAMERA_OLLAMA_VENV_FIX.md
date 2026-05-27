@@ -9,6 +9,53 @@ C:\Program Files\Creolight\AR_Camera_Ollama
 
 ## Files
 
+- `build_ar_camera_ollama_installer.bat`
+  - Builds a copyable installer package on the D drive.
+  - Defaults to this repaired source folder:
+
+    ```text
+    D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+    ```
+
+  - Defaults to this output package folder:
+
+    ```text
+    D:\AR_Camera_Ollama_installer
+    ```
+
+  - Also tries to create:
+
+    ```text
+    D:\AR_Camera_Ollama_installer.zip
+    ```
+
+  - The package contains an `app` payload folder and a root `install.bat`.
+  - Excludes local/non-portable folders such as `python_venv`, `.venv`, `venv`,
+    `.git`, and `__pycache__`.
+  - Writes a build log to:
+
+    ```text
+    %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\build_installer_package.log
+    ```
+
+- `package_install_ar_camera_ollama.bat`
+  - Template used inside the generated package.
+  - Copied into the package as both `install.bat` and
+    `install_ar_camera_ollama.bat`.
+  - Installs the package payload to:
+
+    ```text
+    %LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama
+    ```
+
+  - Runs `repair_python_venv.bat` after copying files so each new computer gets
+    its own clean virtual environment.
+  - Writes an install log to:
+
+    ```text
+    %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\package_install.log
+    ```
+
 - `sync_fixed_build_to_project.bat`
   - Integrates the repaired app folder back into the current project checkout.
   - Defaults to this repaired source folder:
@@ -87,6 +134,68 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     ```
 
 ## How to use on the Windows machine
+
+### Build a D drive installer package
+
+Use this flow when you want one folder or zip that can be copied to a new
+computer and installed there.
+
+1. Make sure the repaired copy exists at:
+
+   ```text
+   D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+   ```
+
+2. Keep these helper files together in one folder:
+
+   ```text
+   build_ar_camera_ollama_installer.bat
+   package_install_ar_camera_ollama.bat
+   repair_python_venv.bat
+   launch_ar_camera_ollama.bat
+   README_AR_CAMERA_OLLAMA_VENV_FIX.md
+   ```
+
+3. Run:
+
+   ```text
+   build_ar_camera_ollama_installer.bat
+   ```
+
+4. The generated package will be:
+
+   ```text
+   D:\AR_Camera_Ollama_installer
+   ```
+
+   If zip creation succeeds, there will also be:
+
+   ```text
+   D:\AR_Camera_Ollama_installer.zip
+   ```
+
+5. Copy either the whole folder or the zip to the new computer.
+
+6. On the new computer, open the copied package folder and double-click:
+
+   ```text
+   install.bat
+   ```
+
+The new computer install path defaults to:
+
+```text
+%LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama
+```
+
+To choose a different install folder on the new computer:
+
+```text
+install.bat "D:\Apps\AR_Camera_Ollama"
+```
+
+The generated package does not carry over `python_venv`; it rebuilds the venv on
+the target computer during install.
 
 ### Integrate the fixed copy into the current project
 
