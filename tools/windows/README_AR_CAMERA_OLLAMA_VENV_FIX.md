@@ -9,6 +9,33 @@ C:\Program Files\Creolight\AR_Camera_Ollama
 
 ## Files
 
+- `sync_fixed_build_to_project.bat`
+  - Integrates the repaired app folder back into the current project checkout.
+  - Defaults to this repaired source folder:
+
+    ```text
+    D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+    ```
+
+  - Defaults to this project folder:
+
+    ```text
+    C:\Users\lodge\AR_Camera_Ollama
+    ```
+
+  - Copies fixed files into the project with `robocopy /E`, not `/MIR`, so it
+    updates and adds files without deleting project-only files.
+  - Excludes local/non-portable folders such as `python_venv`, `.venv`, `venv`,
+    `.git`, `build`, and `dist`.
+  - Copies the launcher/repair/install helpers into the project folder.
+  - Runs `repair_python_venv.bat` in the project folder so local development can
+    start through the fixed launcher.
+  - Writes a sync log to:
+
+    ```text
+    %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\sync_fixed_build_to_project.log
+    ```
+
 - `install_fixed_ar_camera_ollama.bat`
   - Integrates the already-fixed app folder into a repeatable installer flow for
     new Windows machines.
@@ -60,6 +87,64 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     ```
 
 ## How to use on the Windows machine
+
+### Integrate the fixed copy into the current project
+
+Use this flow on the development machine to merge the repaired copy into:
+
+```text
+C:\Users\lodge\AR_Camera_Ollama
+```
+
+1. Keep these helper files together in one folder:
+
+   ```text
+   sync_fixed_build_to_project.bat
+   install_fixed_ar_camera_ollama.bat
+   repair_python_venv.bat
+   launch_ar_camera_ollama.bat
+   README_AR_CAMERA_OLLAMA_VENV_FIX.md
+   ```
+
+2. Make sure the repaired copy exists at:
+
+   ```text
+   D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+   ```
+
+3. Run:
+
+   ```text
+   sync_fixed_build_to_project.bat
+   ```
+
+   This uses the repaired copy as the source and
+   `C:\Users\lodge\AR_Camera_Ollama` as the project target automatically.
+
+4. To choose paths explicitly:
+
+   ```text
+   sync_fixed_build_to_project.bat "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix" "C:\Users\lodge\AR_Camera_Ollama"
+   ```
+
+5. After syncing, start the project through:
+
+   ```text
+   C:\Users\lodge\AR_Camera_Ollama\launch_ar_camera_ollama.bat
+   ```
+
+For future packaging, include these files from the project root in the installer
+or release bundle:
+
+```text
+repair_python_venv.bat
+launch_ar_camera_ollama.bat
+install_fixed_ar_camera_ollama.bat
+README_AR_CAMERA_OLLAMA_VENV_FIX.md
+```
+
+The desktop shortcut should point to `launch_ar_camera_ollama.bat`, with the
+"Start in" directory set to the installed app folder.
 
 ### New computer install from the fixed folder
 
