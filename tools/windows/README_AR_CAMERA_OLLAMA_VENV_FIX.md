@@ -9,6 +9,32 @@ C:\Program Files\Creolight\AR_Camera_Ollama
 
 ## Files
 
+- `install_fixed_ar_camera_ollama.bat`
+  - Integrates the already-fixed app folder into a repeatable installer flow for
+    new Windows machines.
+  - Defaults to this fixed source folder:
+
+    ```text
+    D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+    ```
+
+  - Installs to this per-user folder by default:
+
+    ```text
+    %LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama
+    ```
+
+  - Copies the fixed app files, excluding non-portable virtual environments
+    such as `python_venv`, `.venv`, and `venv`.
+  - Copies the launcher/repair helpers into the install folder.
+  - Runs `repair_python_venv.bat` in the install folder to create a clean venv
+    for the new computer.
+  - Writes an install log to:
+
+    ```text
+    %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\install_fixed_build.log
+    ```
+
 - `repair_python_venv.bat`
   - Finds Python 3.9 or newer.
   - Creates `python_venv` if it is missing.
@@ -34,6 +60,50 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     ```
 
 ## How to use on the Windows machine
+
+### New computer install from the fixed folder
+
+Use this flow for future new-computer installs after copying the repaired app
+folder to:
+
+```text
+D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+```
+
+1. Keep these helper files together in one folder:
+
+   ```text
+   install_fixed_ar_camera_ollama.bat
+   repair_python_venv.bat
+   launch_ar_camera_ollama.bat
+   README_AR_CAMERA_OLLAMA_VENV_FIX.md
+   ```
+
+2. Double-click or run:
+
+   ```text
+   install_fixed_ar_camera_ollama.bat
+   ```
+
+   The script uses `D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix` as the source
+   automatically.
+
+3. To use a different fixed source folder:
+
+   ```text
+   install_fixed_ar_camera_ollama.bat "E:\path\to\AR_Camera_Ollama_fix"
+   ```
+
+4. To choose both source and install folder:
+
+   ```text
+   install_fixed_ar_camera_ollama.bat "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix" "%LOCALAPPDATA%\Programs\Creolight\AR_Camera_Ollama"
+   ```
+
+The default install path is under `%LOCALAPPDATA%` so the app can create and
+repair `python_venv` without requiring Administrator permissions.
+
+### Repair an already-installed copy
 
 1. Copy these two files into:
 
