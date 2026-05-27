@@ -59,6 +59,8 @@ C:\Program Files\Creolight\AR_Camera_Ollama
     ```
 
   - The package contains an `app` payload folder and a root `install.bat`.
+  - If `package_install_ar_camera_ollama.bat` is missing from `tools\windows`,
+    the builder generates a fallback `install.bat` automatically.
   - Excludes local/non-portable folders such as `python_venv`, `.venv`, `venv`,
     `.git`, and `__pycache__`.
   - Writes a build log to:
@@ -242,6 +244,20 @@ install.bat "D:\Apps\AR_Camera_Ollama"
 
 The generated package does not carry over `python_venv`; it rebuilds the venv on
 the target computer during install.
+
+It is OK for the current project checkout to remain on the C drive:
+
+```text
+C:\Users\lodge\AR_Camera_Ollama
+```
+
+The D drive paths are only used for the repaired source copy and the generated
+installer package:
+
+```text
+source: D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+output: D:\AR_Camera_Ollama_installer
+```
 
 ### Integrate the fixed copy into the current project
 

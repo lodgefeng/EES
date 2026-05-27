@@ -76,6 +76,15 @@ D:\AR_Camera_Ollama_installer
 D:\AR_Camera_Ollama_installer.zip
 ```
 
+The project can stay on `C:\Users\lodge\AR_Camera_Ollama`. The D drive paths
+are only the fixed source folder and installer output folder:
+
+```text
+source:  D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+output:  D:\AR_Camera_Ollama_installer
+project: C:\Users\lodge\AR_Camera_Ollama
+```
+
 For new computers, use:
 
 ```text

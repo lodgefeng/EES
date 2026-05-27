@@ -78,10 +78,10 @@ if %ROBOCOPY_EXIT% GEQ 8 (
 )
 call :log "Robocopy completed with code %ROBOCOPY_EXIT%."
 
-call :copy_package_file "package_install_ar_camera_ollama.bat" "install_ar_camera_ollama.bat"
+call :copy_or_generate_installer "install_ar_camera_ollama.bat"
 if errorlevel 1 exit /b 1
 
-call :copy_package_file "package_install_ar_camera_ollama.bat" "install.bat"
+call :copy_or_generate_installer "install.bat"
 if errorlevel 1 exit /b 1
 
 call :copy_package_file "repair_python_venv.bat" "repair_python_venv.bat"
@@ -118,6 +118,76 @@ echo   install.bat
 echo.
 echo Log: "%LOG_FILE%"
 pause
+exit /b 0
+
+:copy_or_generate_installer
+set "TARGET_NAME=%~1"
+if exist "%SCRIPT_DIR%\package_install_ar_camera_ollama.bat" (
+  copy /Y "%SCRIPT_DIR%\package_install_ar_camera_ollama.bat" "%PACKAGE_DIR%\%TARGET_NAME%" >> "%LOG_FILE%" 2>&1
+  if errorlevel 1 (
+    call :log "ERROR: Could not copy package installer template to %TARGET_NAME%"
+    echo ERROR: Could not copy package installer template.
+    echo Log: "%LOG_FILE%"
+    pause
+    exit /b 1
+  )
+  call :log "Copied package installer: %TARGET_NAME%"
+  exit /b 0
+)
+
+call :log "WARNING: package_install_ar_camera_ollama.bat missing; generating %TARGET_NAME%."
+call :write_generated_installer "%PACKAGE_DIR%\%TARGET_NAME%"
+exit /b %ERRORLEVEL%
+
+:write_generated_installer
+set "TARGET_FILE=%~1"
+(
+echo @echo off
+echo setlocal EnableExtensions
+echo set "PACKAGE_DIR=%%~dp0"
+echo for %%%%I in ^("%%PACKAGE_DIR%%."^) do set "PACKAGE_DIR=%%%%~fI"
+echo set "APP_SOURCE=%%PACKAGE_DIR%%\app"
+echo set "INSTALL_DIR=%%~1"
+echo if not defined INSTALL_DIR set "INSTALL_DIR=%%LOCALAPPDATA%%\Programs\Creolight\AR_Camera_Ollama"
+echo for %%%%I in ^("%%INSTALL_DIR%%."^) do set "INSTALL_DIR=%%%%~fI"
+echo set "LOG_DIR=%%LOCALAPPDATA%%\Creolight\AR_Camera_Ollama"
+echo set "LOG_FILE=%%LOG_DIR%%\package_install.log"
+echo if not exist "%%LOG_DIR%%" mkdir "%%LOG_DIR%%"
+echo echo Package install started.
+echo if not exist "%%APP_SOURCE%%\" ^(
+echo   echo ERROR: Package app folder is missing: "%%APP_SOURCE%%"
+echo   pause
+echo   exit /b 1
+echo ^)
+echo if not exist "%%INSTALL_DIR%%" mkdir "%%INSTALL_DIR%%"
+echo robocopy "%%APP_SOURCE%%" "%%INSTALL_DIR%%" /MIR /XD python_venv venv .venv __pycache__ .git /XF *.pyc /R:2 /W:2 /NP /TEE /LOG+:"%%LOG_FILE%%"
+echo set "ROBOCOPY_EXIT=%%ERRORLEVEL%%"
+echo if %%ROBOCOPY_EXIT%% GEQ 8 ^(
+echo   echo ERROR: Failed to copy app payload. Robocopy exit code: %%ROBOCOPY_EXIT%%
+echo   echo Log: "%%LOG_FILE%%"
+echo   pause
+echo   exit /b %%ROBOCOPY_EXIT%%
+echo ^)
+echo copy /Y "%%PACKAGE_DIR%%\repair_python_venv.bat" "%%INSTALL_DIR%%\repair_python_venv.bat"
+echo copy /Y "%%PACKAGE_DIR%%\launch_ar_camera_ollama.bat" "%%INSTALL_DIR%%\launch_ar_camera_ollama.bat"
+echo if exist "%%PACKAGE_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md" copy /Y "%%PACKAGE_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md" "%%INSTALL_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md"
+echo call "%%INSTALL_DIR%%\repair_python_venv.bat"
+echo set "REPAIR_EXIT=%%ERRORLEVEL%%"
+echo if not "%%REPAIR_EXIT%%"=="0" exit /b %%REPAIR_EXIT%%
+echo echo Install completed successfully.
+echo echo Installed to: "%%INSTALL_DIR%%"
+echo pause
+echo exit /b 0
+) > "%TARGET_FILE%"
+if errorlevel 1 (
+  call :log "ERROR: Could not generate package installer: %TARGET_FILE%"
+  echo ERROR: Could not generate package installer:
+  echo   "%TARGET_FILE%"
+  echo Log: "%LOG_FILE%"
+  pause
+  exit /b 1
+)
+call :log "Generated package installer: %TARGET_FILE%"
 exit /b 0
 
 :copy_package_file
