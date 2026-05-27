@@ -40,7 +40,7 @@ if not exist "%VENV_PY%" (
 )
 
 set "ENTRY="
-for %%F in (main.py app.py run.py ar_camera_ollama.py AR_Camera_Ollama.py camera_ollama.py) do (
+for %%F in (main.py app.py run.py ar_camera_ollama.py AR_Camera_Ollama.py camera_ollama.py app\main.py app\app.py app\run.py app\ar_camera_ollama.py app\AR_Camera_Ollama.py app\camera_ollama.py src\main.py src\app.py scripts\main.py scripts\run.py) do (
   if not defined ENTRY if exist "%APP_DIR%\%%F" set "ENTRY=%%F"
 )
 
@@ -56,6 +56,15 @@ if not defined ENTRY (
   echo   ar_camera_ollama.py
   echo   AR_Camera_Ollama.py
   echo   camera_ollama.py
+  echo   app\main.py
+  echo   app\app.py
+  echo   app\run.py
+  echo   src\main.py
+  echo   scripts\main.py
+  echo   scripts\run.py
+  echo.
+  echo Python files found under the install folder:
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "Get-ChildItem -Path $env:APP_DIR -Recurse -Filter *.py -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '\\python_venv\\|\\.venv\\|\\venv\\|\\__pycache__\\' } | Select-Object -First 30 -ExpandProperty FullName"
   echo.
   echo Edit launch_ar_camera_ollama.bat and set ENTRY to the correct file.
   echo Log: "%LOG_FILE%"

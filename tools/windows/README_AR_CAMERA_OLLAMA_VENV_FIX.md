@@ -401,10 +401,22 @@ run.py
 ar_camera_ollama.py
 AR_Camera_Ollama.py
 camera_ollama.py
+app\main.py
+app\app.py
+app\run.py
+src\main.py
+scripts\main.py
+scripts\run.py
 ```
 
 If the app uses a different entry file, edit `launch_ar_camera_ollama.bat` and
 set the `ENTRY` value to the correct Python file.
+
+If install succeeds but launch reports "Could not find a known Python entry
+file", the app files were copied and the venv was created, but the Python entry
+file is in a path the launcher does not recognize yet. The launcher prints the
+first Python files found under the install folder to help identify the correct
+entry.
 
 ## Recommended installer fix
 
