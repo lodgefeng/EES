@@ -181,6 +181,9 @@ target computer can install dependencies from local wheel files first.
     `requests`, plus `pyserial` for `serial`, `PySide6`, and `numpy`.
   - Creates a desktop shortcut named `AR Camera Ollama.lnk` that starts in the
     app folder.
+  - Sets the desktop shortcut icon from the first matching icon file under the
+    app folder, such as `assets\app.ico`, `app\assets\app.ico`, `app.ico`, or
+    `icon.ico`.
   - Writes a repair log to:
 
     ```text
@@ -469,6 +472,11 @@ installs `pyserial` automatically when `serial` is missing.
 If launch reports `ModuleNotFoundError: No module named 'PySide6'`, update the
 helper scripts, rebuild the package, and reinstall. The repair script now
 installs `PySide6` automatically when the Qt GUI dependency is missing.
+
+If the desktop shortcut works but shows a generic icon, update the helper
+scripts and rerun `repair_python_venv.bat` from the install folder. The shortcut
+creator now searches for bundled `.ico` files and assigns the first matching icon
+to the desktop shortcut.
 
 ## Recommended installer fix
 

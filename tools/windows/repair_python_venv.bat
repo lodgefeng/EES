@@ -148,7 +148,7 @@ if errorlevel 1 (
 
 if exist "%LAUNCHER%" (
   call :log "Creating desktop shortcut."
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcutPath = [IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'AR Camera Ollama.lnk'); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($shortcutPath); $shortcut.TargetPath = $env:LAUNCHER; $shortcut.WorkingDirectory = $env:APP_DIR; $shortcut.Save()" >> "%LOG_FILE%" 2>&1
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$shortcutPath = [IO.Path]::Combine([Environment]::GetFolderPath('Desktop'), 'AR Camera Ollama.lnk'); $shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut($shortcutPath); $shortcut.TargetPath = $env:LAUNCHER; $shortcut.WorkingDirectory = $env:APP_DIR; $iconCandidates = @('assets\app.ico','app\assets\app.ico','assets\icon.ico','app\assets\icon.ico','app.ico','icon.ico','release\app.ico','release\icon.ico') | ForEach-Object { Join-Path $env:APP_DIR $_ }; $icon = $iconCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1; if ($icon) { $shortcut.IconLocation = $icon }; $shortcut.Save()" >> "%LOG_FILE%" 2>&1
   if errorlevel 1 (
     call :log "WARNING: Could not create desktop shortcut."
   )
