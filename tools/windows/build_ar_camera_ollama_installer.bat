@@ -91,6 +91,11 @@ if errorlevel 1 exit /b 1
 call :copy_package_file "launch_ar_camera_ollama.bat" "launch_ar_camera_ollama.bat"
 if errorlevel 1 exit /b 1
 
+if exist "%SCRIPT_DIR%\launch_ai_experiment_judgement.bat" (
+  call :copy_package_file "launch_ai_experiment_judgement.bat" "launch_ai_experiment_judgement.bat"
+  if errorlevel 1 exit /b 1
+)
+
 call :copy_package_file "README_AR_CAMERA_OLLAMA_VENV_FIX.md" "README_AR_CAMERA_OLLAMA_VENV_FIX.md"
 if errorlevel 1 exit /b 1
 
@@ -205,6 +210,7 @@ echo   if %%ROBOCOPY_EXIT%% GEQ 8 exit /b %%ROBOCOPY_EXIT%%
 echo ^)
 echo copy /Y "%%PACKAGE_DIR%%\repair_python_venv.bat" "%%INSTALL_DIR%%\repair_python_venv.bat"
 echo copy /Y "%%PACKAGE_DIR%%\launch_ar_camera_ollama.bat" "%%INSTALL_DIR%%\launch_ar_camera_ollama.bat"
+echo if exist "%%PACKAGE_DIR%%\launch_ai_experiment_judgement.bat" copy /Y "%%PACKAGE_DIR%%\launch_ai_experiment_judgement.bat" "%%INSTALL_DIR%%\launch_ai_experiment_judgement.bat"
 echo if exist "%%PACKAGE_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md" copy /Y "%%PACKAGE_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md" "%%INSTALL_DIR%%\README_AR_CAMERA_OLLAMA_VENV_FIX.md"
 echo call "%%INSTALL_DIR%%\repair_python_venv.bat"
 echo set "REPAIR_EXIT=%%ERRORLEVEL%%"

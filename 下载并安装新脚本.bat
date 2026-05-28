@@ -86,6 +86,14 @@ for %%F in ("%HELPER_ROOT%\tools\windows\*") do (
   echo Copied tool file: %%~nxF
 )
 
+call :copy_ai_feature "%HELPER_ROOT%" "%TARGET_DIR%"
+if errorlevel 1 exit /b 1
+
+if exist "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix\" (
+  call :copy_ai_feature "%HELPER_ROOT%" "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix"
+  if errorlevel 1 exit /b 1
+)
+
 echo.
 echo Helper scripts installed successfully.
 echo.
@@ -93,4 +101,23 @@ echo Next run:
 echo   the no-python-check package script in the project root
 echo.
 pause
+exit /b 0
+
+:copy_ai_feature
+set "HELPER_SOURCE=%~1"
+set "FEATURE_TARGET=%~2"
+set "FEATURE_SOURCE=%HELPER_SOURCE%\feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
+if not exist "%FEATURE_SOURCE%" exit /b 0
+if not exist "%FEATURE_TARGET%\app" mkdir "%FEATURE_TARGET%\app" >nul 2>&1
+copy /Y "%FEATURE_SOURCE%" "%FEATURE_TARGET%\app\ai_experiment_judgement.py" >nul
+if errorlevel 1 (
+  echo ERROR: Could not copy AI experiment feature to:
+  echo   "%FEATURE_TARGET%\app"
+  pause
+  exit /b 1
+)
+if exist "%HELPER_SOURCE%\tools\windows\launch_ai_experiment_judgement.bat" (
+  copy /Y "%HELPER_SOURCE%\tools\windows\launch_ai_experiment_judgement.bat" "%FEATURE_TARGET%\launch_ai_experiment_judgement.bat" >nul
+)
+echo Copied AI experiment feature to: "%FEATURE_TARGET%"
 exit /b 0

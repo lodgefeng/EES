@@ -87,6 +87,11 @@ if errorlevel 1 exit /b 1
 call :copy_helper "launch_ar_camera_ollama.bat"
 if errorlevel 1 exit /b 1
 
+if exist "%PACKAGE_DIR%\launch_ai_experiment_judgement.bat" (
+  call :copy_helper "launch_ai_experiment_judgement.bat"
+  if errorlevel 1 exit /b 1
+)
+
 call :copy_helper "README_AR_CAMERA_OLLAMA_VENV_FIX.md"
 if errorlevel 1 exit /b 1
 

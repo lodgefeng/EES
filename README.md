@@ -96,3 +96,26 @@ The installer defaults to the fixed source folder:
 ```text
 D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
 ```
+
+## AI实验判断
+
+The first AI experiment judgement page is available as a drop-in PySide6 module:
+
+```text
+feature/ai_experiment_judgement/app/ai_experiment_judgement.py
+```
+
+Copy it into the local project and fixed source folder with:
+
+```text
+安装AI实验判断功能.bat
+```
+
+`下载并安装新脚本.bat` and `复制新脚本到项目.bat` also copy the module into the
+local project and D-drive fixed source when the feature files are present.
+
+Integration notes are in:
+
+```text
+docs/AI_EXPERIMENT_JUDGEMENT.md
+```

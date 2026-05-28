@@ -73,6 +73,14 @@ if errorlevel 1 exit /b 1
 call :copy_tool "README_AR_CAMERA_OLLAMA_VENV_FIX.md"
 if errorlevel 1 exit /b 1
 
+call :copy_ai_feature "%TARGET_DIR%"
+if errorlevel 1 exit /b 1
+
+if exist "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix\" (
+  call :copy_ai_feature "D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix"
+  if errorlevel 1 exit /b 1
+)
+
 echo.
 echo Done.
 echo.
@@ -97,4 +105,22 @@ if errorlevel 1 (
   exit /b 1
 )
 echo Copied tool file: %FILE_NAME%
+exit /b 0
+
+:copy_ai_feature
+set "FEATURE_TARGET=%~1"
+set "FEATURE_SOURCE=%SOURCE_DIR%feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
+if not exist "%FEATURE_SOURCE%" exit /b 0
+if not exist "%FEATURE_TARGET%\app" mkdir "%FEATURE_TARGET%\app" >nul 2>&1
+copy /Y "%FEATURE_SOURCE%" "%FEATURE_TARGET%\app\ai_experiment_judgement.py" >nul
+if errorlevel 1 (
+  echo ERROR: Could not copy AI experiment feature to:
+  echo   "%FEATURE_TARGET%\app"
+  pause
+  exit /b 1
+)
+if exist "%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat" (
+  copy /Y "%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat" "%FEATURE_TARGET%\launch_ai_experiment_judgement.bat" >nul
+)
+echo Copied AI experiment feature to: "%FEATURE_TARGET%"
 exit /b 0
