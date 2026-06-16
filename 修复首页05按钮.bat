@@ -44,9 +44,40 @@ if exist "%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py" (
 
 :patched
 echo.
+echo Verifying install files:
+if exist "%TARGET_DIR%\start_app.bat" (
+  echo   [OK] start_app.bat
+) else (
+  echo   [MISSING] start_app.bat
+)
+if exist "%TARGET_DIR%\launch_ar_camera_ollama.bat" (
+  echo   [OK] launch_ar_camera_ollama.bat
+) else (
+  echo   [MISSING] launch_ar_camera_ollama.bat
+)
+if exist "%TARGET_DIR%\app\home_menu_patch.py" (
+  echo   [OK] app\home_menu_patch.py
+) else (
+  echo   [MISSING] app\home_menu_patch.py
+)
+if exist "%TARGET_DIR%\app\launcher_entry.py" (
+  echo   [OK] app\launcher_entry.py
+) else (
+  echo   [MISSING] app\launcher_entry.py
+)
+if exist "%TARGET_DIR%\app\ai_experiment_judgement.py" (
+  echo   [OK] app\ai_experiment_judgement.py
+) else (
+  echo   [MISSING] app\ai_experiment_judgement.py
+)
+echo.
 echo Done. Close the app and open it again from the desktop shortcut.
 echo You should see:
 echo   05 ^| AI实验判断
+echo.
+echo If button 05 is still missing, check:
+echo   %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log
+echo   %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
 echo.
 pause
 exit /b 0

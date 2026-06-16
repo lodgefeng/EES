@@ -15,7 +15,8 @@ for %%I in ("%FIXED_DIR%.") do set "FIXED_DIR=%%~fI"
 set "FEATURE_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
 set "PATCH_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\home_menu_patch.py"
 set "ENTRY_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\launcher_entry.py"
-set "LAUNCHER_FILE=%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat"
+set "MAIN_LAUNCHER_FILE=%SOURCE_DIR%tools\windows\launch_ar_camera_ollama.bat"
+set "FEATURE_LAUNCHER_FILE=%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat"
 set "MENU_PATCHER=%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py"
 
 echo Installing AI experiment judgement feature...
@@ -39,9 +40,16 @@ if not exist "%PATCH_FILE%" (
   exit /b 1
 )
 
-if not exist "%LAUNCHER_FILE%" (
-  echo ERROR: Missing launcher file:
-  echo   "%LAUNCHER_FILE%"
+if not exist "%MAIN_LAUNCHER_FILE%" (
+  echo ERROR: Missing main launcher file:
+  echo   "%MAIN_LAUNCHER_FILE%"
+  pause
+  exit /b 1
+)
+
+if not exist "%FEATURE_LAUNCHER_FILE%" (
+  echo ERROR: Missing feature launcher file:
+  echo   "%FEATURE_LAUNCHER_FILE%"
   pause
   exit /b 1
 )
@@ -101,9 +109,16 @@ if exist "%ENTRY_FILE%" (
     exit /b 1
   )
 )
-copy /Y "%LAUNCHER_FILE%" "%TARGET%\launch_ar_camera_ollama.bat" >nul
+copy /Y "%MAIN_LAUNCHER_FILE%" "%TARGET%\launch_ar_camera_ollama.bat" >nul
 if errorlevel 1 (
-  echo ERROR: Could not copy launcher to:
+  echo ERROR: Could not copy main launcher to:
+  echo   "%TARGET%"
+  pause
+  exit /b 1
+)
+copy /Y "%FEATURE_LAUNCHER_FILE%" "%TARGET%\launch_ai_experiment_judgement.bat" >nul
+if errorlevel 1 (
+  echo ERROR: Could not copy feature launcher to:
   echo   "%TARGET%"
   pause
   exit /b 1

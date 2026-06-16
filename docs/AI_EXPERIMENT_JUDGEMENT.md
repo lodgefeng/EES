@@ -95,9 +95,19 @@ C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
 如果仍看不到，确认这两个文件存在：
 
 ```text
-C:\Users\lodge\AR_Camera_Ollama\app\home_menu_patch.py
-C:\Users\lodge\AR_Camera_Ollama\app\main.py
+C:\Program Files\Creolight\AR_Camera_Ollama\app\home_menu_patch.py
+C:\Program Files\Creolight\AR_Camera_Ollama\app\launcher_entry.py
+C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
 ```
+
+并检查日志：
+
+```text
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log
+```
+
+如果 `launcher.log` 里有 `Using launcher entry with home-menu patch.`，说明桌面快捷方式已经走补丁启动链。
 
 并检查 `main.py` 里是否包含标记：
 

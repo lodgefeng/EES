@@ -138,4 +138,9 @@ run:
 修复Creolight安装首页05按钮.bat
 ```
 
-as administrator, then restart from the desktop shortcut.
+It will request administrator permission automatically. After restart, check:
+
+```text
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log
+```
