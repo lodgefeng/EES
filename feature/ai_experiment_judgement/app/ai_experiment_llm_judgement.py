@@ -4,14 +4,11 @@
 from __future__ import annotations
 
 import base64
-import json
-import re
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 import cv2
 import numpy as np
-import requests
 from PySide6.QtCore import QThread, QTimer, Qt, Signal
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -40,6 +37,7 @@ from app.experiment_shared import (
     show_frame_on_label,
     write_image,
 )
+from app.ollama_vision_client import guess_vision_model, judge_images_with_ollama
 
 
 class OllamaJudgeWorker(QThread):
@@ -62,30 +60,14 @@ class OllamaJudgeWorker(QThread):
         self.region_count = region_count
 
     def run(self) -> None:
-        prompt = (
-            "你是光学实验摆放判断助手。"
-            "第一张是实时画面，第二张是标准摆放参考图。"
-            f"程序已在实时图上用编号圆圈标出 {self.region_count} 处疑似差异。"
-            "请逐条说明每个编号处有什么不一样，判断学生摆放哪里不正确，"
-            "并给出简短整改建议。使用中文，条理清晰。"
-        )
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "images": [self.current_b64, self.reference_b64],
-            "stream": False,
-        }
         try:
-            response = requests.post(
-                f"{self.endpoint}/api/generate",
-                json=payload,
-                timeout=120,
+            text = judge_images_with_ollama(
+                model=self.model,
+                endpoint=self.endpoint,
+                current_b64=self.current_b64,
+                reference_b64=self.reference_b64,
+                region_count=self.region_count,
             )
-            response.raise_for_status()
-            data = response.json()
-            text = str(data.get("response", "")).strip()
-            if not text:
-                raise RuntimeError("Ollama returned an empty response.")
             self.finished.emit(text)
         except Exception as exc:  # noqa: BLE001
             self.failed.emit(str(exc))
@@ -121,6 +103,7 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
         self.calibration = load_calibration(self.calibration_path)
         self._sync_controls()
         self._load_default_reference()
+        self._autofill_model_name()
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._read_camera_frame)
@@ -145,7 +128,7 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
         self.camera_index.setRange(0, 10)
         self.camera_index.valueChanged.connect(self._camera_index_changed)
 
-        self.model_edit = QLineEdit("llava")
+        self.model_edit = QLineEdit("qwen3-vl:2b")
         self.endpoint_edit = QLineEdit("http://127.0.0.1:11434")
 
         start_button = QPushButton("启动摄像头")
@@ -175,6 +158,12 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
         layout.addLayout(top_controls)
         layout.addWidget(self.video_label)
         layout.addWidget(self.result_text)
+
+    def _autofill_model_name(self) -> None:
+        endpoint = self.endpoint_edit.text().strip() or "http://127.0.0.1:11434"
+        guessed = guess_vision_model(endpoint)
+        if guessed and self.model_edit.text().strip() in ("", "llava"):
+            self.model_edit.setText(guessed)
 
     def _go_home(self) -> None:
         self.hide()
@@ -261,11 +250,16 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
 
         current_b64 = _image_to_base64(marked)
         reference_b64 = _image_to_base64(ref_canvas)
+        model = self.model_edit.text().strip() or "qwen3-vl:2b"
+        endpoint = self.endpoint_edit.text().strip() or "http://127.0.0.1:11434"
 
-        self.result_text.setPlainText("正在调用 Ollama 大模型分析差异...")
+        self.result_text.setPlainText(
+            f"正在调用 Ollama 模型 {model} 分析差异...\n"
+            "优先使用 /api/chat 接口（适配 qwen-vl 等多模态模型）。"
+        )
         self._worker = OllamaJudgeWorker(
-            model=self.model_edit.text().strip() or "llava",
-            endpoint=self.endpoint_edit.text().strip() or "http://127.0.0.1:11434",
+            model=model,
+            endpoint=endpoint,
             current_b64=current_b64,
             reference_b64=reference_b64,
             region_count=len(circles),
@@ -275,16 +269,19 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
         self._worker.start()
 
     def _on_judge_finished(self, text: str) -> None:
-        circles_text = ""
+        prefix = ""
         if self._last_marked_frame is not None:
-            circles_text = "已在实时画面上用编号圆圈标出疑似差异区域。\n\n"
-        self.result_text.setPlainText(circles_text + text)
+            prefix = "已在实时画面上用编号圆圈标出主要疑似差异区域。\n\n"
+        self.result_text.setPlainText(prefix + text)
 
     def _on_judge_failed(self, message: str) -> None:
         self.result_text.setPlainText(
             "Ollama 判断失败。\n"
             f"错误：{message}\n\n"
-            "请确认本机已启动 Ollama，并安装了视觉模型（如 llava、llava:13b）。"
+            "请确认：\n"
+            "1. Ollama 已启动（地址 http://127.0.0.1:11434）\n"
+            "2. 模型名称与 Ollama 中一致，例如 qwen3-vl:2b\n"
+            "3. 该模型支持视觉输入（名称含 vl / llava 等）"
         )
 
     def _camera_index_changed(self, value: int) -> None:
@@ -304,31 +301,7 @@ class AIExperimentLLMJudgementWindow(AIExperimentLLMJudgementWidget):
 
 
 def _image_to_base64(image: np.ndarray) -> str:
-    ok, encoded = cv2.imencode(".jpg", image)
+    ok, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 85])
     if not ok:
         raise RuntimeError("Could not encode image for Ollama.")
     return base64.b64encode(encoded.tobytes()).decode("ascii")
-
-
-def try_ollama_via_app_module(
-    current_frame: np.ndarray,
-    reference_frame: np.ndarray,
-    circles: list[tuple[int, int, int]],
-) -> Optional[str]:
-    """Optional bridge to existing app.ollama_vl if present."""
-    try:
-        from app import ollama_vl  # type: ignore
-    except Exception:  # noqa: BLE001
-        return None
-    for attr in ("compare_images", "analyze_difference", "judge_placement"):
-        func = getattr(ollama_vl, attr, None)
-        if callable(func):
-            try:
-                result = func(current_frame, reference_frame, circles)
-                if isinstance(result, str):
-                    return result
-                if isinstance(result, dict):
-                    return json.dumps(result, ensure_ascii=False, indent=2)
-            except Exception:  # noqa: BLE001
-                continue
-    return None

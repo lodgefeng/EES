@@ -65,7 +65,8 @@ app\jbd4020_service.py
 
 在 06 页面可修改：
 
-- 模型名：默认 `llava`
+- 模型名：默认 `qwen3-vl:2b`（启动时会自动从 Ollama 检测已安装的 vl 模型）
 - 地址：默认 `http://127.0.0.1:11434`
+- 调用顺序：`/api/chat`（qwen-vl 推荐）→ `/api/generate`（兼容 llava）
 
 如果项目里已有 `app\ollama_vl.py`，后续版本可继续对接该模块。

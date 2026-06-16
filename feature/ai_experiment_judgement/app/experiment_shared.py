@@ -157,7 +157,8 @@ def find_difference_regions(
     frame: np.ndarray,
     reference_canvas_img: np.ndarray,
     mask: np.ndarray,
-    min_area: int = 500,
+    min_area: int = 2800,
+    max_regions: int = 12,
 ) -> list[Tuple[int, int, int]]:
     """Return list of (x, y, radius) circles for visible differences."""
     frame_gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -165,19 +166,28 @@ def find_difference_regions(
     valid = mask > 0
     diff = cv2.absdiff(frame_gray, ref_gray)
     diff[~valid] = 0
-    blurred = cv2.GaussianBlur(diff, (9, 9), 0)
-    _, thresh = cv2.threshold(blurred, 35, 255, cv2.THRESH_BINARY)
-    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, np.ones((5, 5), np.uint8))
+    blurred = cv2.GaussianBlur(diff, (11, 11), 0)
+    threshold_value = max(40, int(np.percentile(diff[valid], 92))) if np.any(valid) else 40
+    _, thresh = cv2.threshold(blurred, threshold_value, 255, cv2.THRESH_BINARY)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8))
     contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    circles: list[Tuple[int, int, int]] = []
+    circles: list[Tuple[int, int, int, float]] = []
     for contour in contours:
         area = cv2.contourArea(contour)
         if area < min_area:
             continue
         x, y, w, h = cv2.boundingRect(contour)
-        radius = max(12, int(max(w, h) * 0.65))
-        circles.append((x + w // 2, y + h // 2, radius))
-    return circles
+        radius = max(18, int(max(w, h) * 0.7))
+        circles.append((x + w // 2, y + h // 2, radius, area))
+    circles.sort(key=lambda item: item[3], reverse=True)
+    merged: list[Tuple[int, int, int]] = []
+    for cx, cy, radius, _area in circles:
+        if len(merged) >= max_regions:
+            break
+        if any((cx - mx) ** 2 + (cy - my) ** 2 < (radius + mr) ** 2 for mx, my, mr in merged):
+            continue
+        merged.append((cx, cy, radius))
+    return merged
 
 
 def draw_difference_circles(
