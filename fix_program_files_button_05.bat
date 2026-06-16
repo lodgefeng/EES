@@ -70,6 +70,7 @@ copy /Y "%HELPER_ROOT%\tools\windows\start_app.bat" "%INSTALL_DIR%\start_app.bat
 if errorlevel 1 goto copy_failed
 copy /Y "%HELPER_ROOT%\tools\windows\launch_ar_camera_ollama.bat" "%INSTALL_DIR%\launch_ar_camera_ollama.bat" >nul
 if errorlevel 1 goto copy_failed
+copy /Y "%HELPER_ROOT%\diagnose_home_menu_patch.bat" "%INSTALL_DIR%\diagnose_home_menu_patch.bat" >nul
 
 echo [3/4] Repairing app\main.py if a broken source patch exists...
 set "VENV_PY=%INSTALL_DIR%\python_venv\Scripts\python.exe"
@@ -103,7 +104,10 @@ echo.
 echo Next steps:
 echo   1. Close AR Camera Ollama completely
 echo   2. Open again from desktop shortcut
-echo   3. You should see button 05 on the home page
+echo   3. You should see buttons 05 and 06 on the home page
+echo.
+echo If buttons are still missing, run:
+echo   diagnose_home_menu_patch.bat
 echo.
 echo After restart, logs should appear here:
 echo   %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log

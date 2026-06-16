@@ -21,15 +21,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.ai_experiment_llm_judgement import AIExperimentLLMJudgementWindow
-from app.ar_imaging_adjustment import ARImagingAdjustmentWindow
-
 PATCH_MARKER_05 = "AR_IMAGING_ADJUSTMENT_BUTTON_05"
 PATCH_MARKER_06 = "AI_EXPERIMENT_LLM_BUTTON_06"
 BUTTON_05_TEXT = "05 | AR成像调节"
 BUTTON_06_TEXT = "06 | AI实验判断"
 _LEGACY_BUTTON_05_TEXT = "05 | AI实验判断"
-_NUMBERED_BUTTON_RE = re.compile(r"^\s*(\d{2})\s*\|")
+_NUMBERED_BUTTON_RE = re.compile(r"^\s*(\d{2})\s*[\|｜]")
 _PATCH_NUMBERS = (5, 6)
 _RUNTIME_HOOKED = False
 _LOG_PATH = os.path.join(
@@ -50,7 +47,7 @@ def activate_menu_patch_runtime() -> None:
     def patched_init(app_self, *args, **kwargs):
         original_init(app_self, *args, **kwargs)
         _install_show_event_filter()
-        for delay_ms in (0, 100, 250, 500, 1000, 2000, 3500, 5000):
+        for delay_ms in (0, 100, 250, 500, 1000, 2000, 3500, 5000, 8000, 12000):
             QTimer.singleShot(delay_ms, install_on_top_level_window)
 
     QApplication.__init__ = patched_init  # type: ignore[method-assign]
@@ -60,6 +57,9 @@ def activate_menu_patch_runtime() -> None:
 
 def install_home_menu_buttons(main_window: QWidget) -> bool:
     _clear_stale_markers(main_window)
+
+    if _find_anchor_button(main_window) is None:
+        return False
 
     legacy = _find_button_by_text(main_window, _LEGACY_BUTTON_05_TEXT)
     if legacy is not None:
@@ -79,7 +79,7 @@ def install_home_menu_buttons(main_window: QWidget) -> bool:
         return False
 
     stack_parent, layout, stack_buttons, insert_after = stack
-    style_anchor = stack_buttons[-1]
+    style_anchor = _style_source_widget(stack_buttons[-1])
 
     _remove_misplaced_patch_widgets(main_window, layout)
 
@@ -130,7 +130,8 @@ def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
     if stack is None:
         return False
     _, layout, stack_buttons, _ = stack
-    stack_numbers = {_button_number(button) for button in stack_buttons}
+    stack_numbers = {_subtree_menu_number(button) for button in stack_buttons}
+    stack_numbers.discard(None)
     if not {1, 4}.issubset(stack_numbers):
         return False
     for text in (BUTTON_05_TEXT, BUTTON_06_TEXT):
@@ -179,8 +180,6 @@ def install_on_top_level_window() -> bool:
 
     installed = False
     for widget in app.topLevelWidgets():
-        if not widget.isVisible():
-            continue
         if install_home_menu_buttons(widget):
             installed = True
     return installed
@@ -343,13 +342,53 @@ def _layout_owner(layout: QLayout) -> Optional[QWidget]:
     return parent if isinstance(parent, QWidget) else None
 
 
-def _last_stack_index(layout: QLayout, stack_buttons: List[QWidget]) -> int:
-    last_index = -1
-    for button in stack_buttons:
-        index = layout.indexOf(button)
-        if index > last_index:
-            last_index = index
-    return last_index
+def _layout_item_for_widget(layout: QLayout, widget: QWidget) -> Tuple[Optional[QWidget], int]:
+    current: Optional[QWidget] = widget
+    while current is not None:
+        index = layout.indexOf(current)
+        if index >= 0:
+            return current, index
+        current = current.parentWidget()
+    return None, -1
+
+
+def _subtree_menu_number(widget: QWidget) -> Optional[int]:
+    number = _button_number(widget)
+    if number is not None:
+        return number
+    for child in widget.findChildren(QWidget):
+        number = _button_number(child)
+        if number is not None:
+            return number
+    return None
+
+
+def _layout_menu_items(layout: QLayout) -> List[Tuple[int, QWidget, int]]:
+    items: List[Tuple[int, QWidget, int]] = []
+    for index in range(layout.count()):
+        item = layout.itemAt(index)
+        if item is None:
+            continue
+        child = item.widget()
+        if child is None:
+            continue
+        number = _subtree_menu_number(child)
+        if number is None or number > 4:
+            continue
+        items.append((number, child, index))
+    return items
+
+
+def _layout_menu_score(layout: QLayout, menu_items: List[Tuple[int, QWidget, int]]) -> int:
+    numbers = {number for number, _, _ in menu_items}
+    score = len(numbers) * 10
+    if 1 in numbers:
+        score += 5
+    if 4 in numbers:
+        score += 5
+    if isinstance(layout, QBoxLayout) and layout.direction() == Qt.Vertical:
+        score += 20
+    return score
 
 
 def _group_menu_buttons_by_layout(
@@ -370,65 +409,79 @@ def _group_menu_buttons_by_layout(
 def _find_menu_button_stack(
     root: QWidget,
 ) -> Optional[Tuple[QWidget, QLayout, List[QWidget], int]]:
-    grouped = _group_menu_buttons_by_layout(root)
-    if not grouped:
-        _log("no numbered home-menu layouts found")
+    anchor = _find_anchor_button(root)
+    if anchor is None:
+        _log("anchor button 04 not found")
         return None
 
     best_layout: Optional[QLayout] = None
-    best_buttons: List[QWidget] = []
-    for layout, buttons in grouped.items():
-        unique = _unique_buttons_sorted(buttons)
-        if len(unique) > len(best_buttons):
-            best_layout = layout
-            best_buttons = unique
+    best_items: List[Tuple[int, QWidget, int]] = []
+    best_score = -1
 
-    if best_layout is None or len(best_buttons) < 2:
+    current: Optional[QWidget] = anchor
+    while current is not None:
+        parent = current.parentWidget()
+        if parent is None:
+            break
+        layout = parent.layout()
+        if layout is not None:
+            menu_items = _layout_menu_items(layout)
+            unique_numbers = {number for number, _, _ in menu_items}
+            if len(unique_numbers) >= 2:
+                score = _layout_menu_score(layout, menu_items)
+                if score > best_score:
+                    best_score = score
+                    best_layout = layout
+                    best_items = menu_items
+        current = parent
+
+    if best_layout is None or len(best_items) < 2:
+        grouped = _group_menu_buttons_by_layout(root)
+        if not grouped:
+            _log("no numbered home-menu layouts found")
+            return None
+
+        for layout, buttons in grouped.items():
+            unique = _unique_buttons_sorted(buttons)
+            if len(unique) <= len(best_items):
+                continue
+            menu_items = []
+            for button in unique:
+                number = _button_number(button) or _subtree_menu_number(button)
+                if number is None:
+                    continue
+                target, index = _layout_item_for_widget(layout, button)
+                if target is not None and index >= 0:
+                    menu_items.append((number, target, index))
+            if len(menu_items) > len(best_items):
+                best_layout = layout
+                best_items = menu_items
+
+    if best_layout is None or len(best_items) < 2:
         _log("home-menu layout has too few numbered buttons")
         return None
 
-    stack_numbers = {_button_number(button) for button in best_buttons}
-    if 1 not in stack_numbers or 4 not in stack_numbers:
-        anchor = _find_anchor_button(root)
-        if anchor is None:
-            _log("home-menu layout missing buttons 01 and 04")
-            return None
-        layout, anchor_index = _find_layout_for_widget(anchor)
-        if layout is None or anchor_index < 0:
-            _log("anchor button 04 is not inside a layout")
-            return None
-        best_layout = layout
-        best_buttons = _unique_buttons_sorted(
-            [
-                widget
-                for widget in _iter_menu_label_widgets(root)
-                if _button_number(widget) is not None
-                and (_button_number(widget) or 99) <= 4
-                and layout.indexOf(widget) >= 0
-            ]
-        )
-        if len(best_buttons) < 2:
-            _log("anchor fallback layout still has too few buttons")
-            return None
+    menu_items = sorted(best_items, key=lambda item: item[0])
+    numbers = [number for number, _, _ in menu_items]
+    if 4 not in numbers:
+        _log(f"home-menu stack missing button 04, found={numbers}")
+        return None
+
+    stack_buttons = [widget for _, widget, _ in menu_items]
+    last_index = max(index for _, _, index in menu_items)
 
     stack_parent = _layout_owner(best_layout)
     if stack_parent is None:
-        stack_parent = best_buttons[-1].parentWidget()
+        stack_parent = stack_buttons[-1].parentWidget()
     if stack_parent is None:
         _log("home-menu stack parent not found")
         return None
 
-    last_index = _last_stack_index(best_layout, best_buttons)
-    if last_index < 0:
-        _log("home-menu buttons are not direct layout children")
-        return None
-
-    numbers = sorted(_button_number(button) or 0 for button in best_buttons)
     _log(
         "home-menu stack found: parent="
         f"{stack_parent.__class__.__name__}, buttons={numbers}, insert_after={last_index}"
     )
-    return stack_parent, best_layout, best_buttons, last_index
+    return stack_parent, best_layout, stack_buttons, last_index
 
 
 def _find_anchor_button(root: QWidget) -> Optional[QWidget]:
@@ -464,6 +517,16 @@ def _button_number(widget: QWidget) -> Optional[int]:
     if not match:
         return None
     return int(match.group(1))
+
+
+def _style_source_widget(widget: QWidget) -> QWidget:
+    for child in widget.findChildren(QAbstractButton):
+        text = _widget_label_text(child)
+        if text.strip():
+            return child
+    for child in widget.findChildren(QAbstractButton):
+        return child
+    return widget
 
 
 def _match_button_geometry(anchor: QWidget, button: QPushButton) -> None:
@@ -552,6 +615,8 @@ def _button_style(anchor: QWidget) -> str:
 
 
 def _open_ar_imaging_adjustment(main_window: QWidget, _button: QWidget) -> None:
+    from app.ar_imaging_adjustment import ARImagingAdjustmentWindow
+
     existing = getattr(main_window, "_ar_imaging_adjustment_window", None)
     if existing is not None:
         main_window.hide()
@@ -568,6 +633,8 @@ def _open_ar_imaging_adjustment(main_window: QWidget, _button: QWidget) -> None:
 
 
 def _open_ai_experiment_llm_judgement(main_window: QWidget, _button: QWidget) -> None:
+    from app.ai_experiment_llm_judgement import AIExperimentLLMJudgementWindow
+
     existing = getattr(main_window, "_ai_experiment_llm_window", None)
     if existing is not None:
         main_window.hide()
