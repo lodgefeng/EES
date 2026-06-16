@@ -26,23 +26,23 @@ def patch_main_py(main_py: Path) -> tuple[bool, str]:
     if MARKER in text:
         return True, "already patched"
 
+    backup = main_py.with_suffix(main_py.suffix + ".bak_button05")
+    if not backup.exists():
+        backup.write_text(text, encoding="utf-8")
+
     updated = _insert_imports(text)
     updated, inserted = _insert_schedule_call(updated)
     if not inserted:
-        updated = _insert_before_main(updated)
-        if MARKER not in updated:
-            return False, "could not find a safe place to hook schedule_ai_experiment_menu_button"
+        return False, "skipped unsafe main.py patch; use launcher_entry runtime hook instead"
 
-    if MARKER not in updated:
-        updated = updated.rstrip() + (
-            f"\n\n# {MARKER}\n"
-            "def _ai_experiment_menu_patch_fallback(window):\n"
-            "    try:\n"
-            "        from app.home_menu_patch import schedule_ai_experiment_menu_button\n"
-            "        schedule_ai_experiment_menu_button(window)\n"
-            "    except Exception:\n"
-            "        pass\n"
-        )
+    try:
+        import ast
+
+        ast.parse(updated)
+    except SyntaxError as exc:
+        if backup.exists():
+            main_py.write_text(backup.read_text(encoding="utf-8"), encoding="utf-8")
+        return False, f"patch rejected due to syntax error: {exc}"
 
     main_py.write_text(updated, encoding="utf-8")
     return True, "patched"
@@ -77,23 +77,18 @@ def _insert_schedule_call(text: str) -> tuple[str, bool]:
         if not match:
             continue
         indent = re.match(r"^(\s*)", match.group(1)).group(1)
-        call = "\n".join(indent + line if line.strip() else line for line in CALL_LINE.splitlines())
+        call = "\n".join(_indent_line(indent, line) for line in CALL_LINE.splitlines())
         replacement = match.group(1) + "\n" + call
         return text[: match.start(1)] + replacement + text[match.end(1) :], True
 
-    init_match = re.search(r"^(\s+)def __init__\(", text, flags=re.MULTILINE)
-    if init_match:
-        indent = init_match.group(1)
-        body_indent = indent + "    "
-        init_body_start = text.find("\n", init_match.end())
-        if init_body_start == -1:
-            return text, False
-        call = "\n".join(
-            body_indent + line if line.strip() else line for line in CALL_LINE.splitlines()
-        )
-        return text[: init_body_start + 1] + call + "\n" + text[init_body_start + 1 :], True
-
     return text, False
+
+
+def _indent_line(base_indent: str, line: str) -> str:
+    if not line.strip():
+        return ""
+    body = line.lstrip()
+    return f"{base_indent}{body}"
 
 
 def _insert_before_main(text: str) -> str:

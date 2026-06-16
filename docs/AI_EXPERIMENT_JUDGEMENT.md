@@ -57,7 +57,7 @@ launch_ai_experiment_judgement.bat
 
 1. 复制 `ai_experiment_judgement.py`、`home_menu_patch.py`、`launcher_entry.py`
 2. 更新 `launch_ar_camera_ollama.bat`，让桌面快捷方式启动时自动插入按钮 05
-3. 给 `app\main.py` 打补丁（备用）
+3. 修复 `app\main.py` 里可能损坏的源码补丁（按钮 05 走运行时注入，不再改 main.py）
 
 ```text
 安装首页05按钮.bat
@@ -121,7 +121,13 @@ C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
 
 如果 `launcher.log` 里有 `Using launcher entry with home-menu patch.`，说明桌面快捷方式已经走补丁启动链。
 
-并检查 `main.py` 里是否包含标记：
+如果启动报 `IndentationError` 在 `app\main.py`，运行：
+
+```text
+repair_main_py_button05.bat
+```
+
+这会移除损坏的源码补丁。按钮 05 仍通过 `launcher_entry` 运行时注入，不需要改 `main.py`。
 
 ```text
 AI_EXPERIMENT_JUDGEMENT_MENU_PATCH

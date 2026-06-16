@@ -75,13 +75,13 @@ if errorlevel 1 goto copy_failed
 copy /Y "%HELPER_ROOT%\tools\windows\launch_ar_camera_ollama.bat" "%INSTALL_DIR%\launch_ar_camera_ollama.bat" >nul
 if errorlevel 1 goto copy_failed
 
-echo [3/4] Patching app\main.py if possible...
-for %%P in ("py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
-  if exist "%HELPER_ROOT%\tools\windows\patch_main_menu_button_05.py" (
-    %%~P "%HELPER_ROOT%\tools\windows\patch_main_menu_button_05.py" "%INSTALL_DIR%" >nul 2>&1 && goto patched_main
+echo [3/4] Repairing app\main.py if a broken source patch exists...
+for %%P in ("%INSTALL_DIR%\python_venv\Scripts\python.exe" "py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
+  if exist "%HELPER_ROOT%\tools\windows\repair_main_py_menu_patch.py" (
+    %%~P "%HELPER_ROOT%\tools\windows\repair_main_py_menu_patch.py" "%INSTALL_DIR%" >nul 2>&1 && goto repaired_main
   )
 )
-:patched_main
+:repaired_main
 
 echo [4/4] Verifying files...
 set "MISSING=0"

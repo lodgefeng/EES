@@ -158,3 +158,9 @@ After restart, check:
 %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
 %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log
 ```
+
+If the app fails with `IndentationError` in `app\main.py`, run:
+
+```text
+repair_main_py_button05.bat
+```
