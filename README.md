@@ -126,4 +126,16 @@ To show button `05 | AI实验判断` on the home page:
 修复首页05按钮.bat
 ```
 
-Then restart the app from the desktop shortcut.
+If the desktop shortcut starts:
+
+```text
+C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
+```
+
+run:
+
+```text
+修复Creolight安装首页05按钮.bat
+```
+
+as administrator, then restart from the desktop shortcut.

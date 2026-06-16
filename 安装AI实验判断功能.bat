@@ -101,12 +101,21 @@ if exist "%ENTRY_FILE%" (
     exit /b 1
   )
 )
-copy /Y "%LAUNCHER_FILE%" "%TARGET%\launch_ai_experiment_judgement.bat" >nul
+copy /Y "%LAUNCHER_FILE%" "%TARGET%\launch_ar_camera_ollama.bat" >nul
 if errorlevel 1 (
   echo ERROR: Could not copy launcher to:
   echo   "%TARGET%"
   pause
   exit /b 1
+)
+if exist "%SOURCE_DIR%tools\windows\start_app.bat" (
+  copy /Y "%SOURCE_DIR%tools\windows\start_app.bat" "%TARGET%\start_app.bat" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not copy start_app.bat to:
+    echo   "%TARGET%"
+    pause
+    exit /b 1
+  )
 )
 echo Installed feature into: "%TARGET%"
 exit /b 0

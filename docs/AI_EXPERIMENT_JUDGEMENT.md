@@ -69,6 +69,20 @@ launch_ai_experiment_judgement.bat
 修复首页05按钮.bat
 ```
 
+如果桌面快捷方式目标是：
+
+```text
+C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
+```
+
+请运行：
+
+```text
+修复Creolight安装首页05按钮.bat
+```
+
+需要右键“以管理员身份运行”。
+
 也可以先更新 helper，再运行：
 
 ```text

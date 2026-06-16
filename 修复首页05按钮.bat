@@ -16,6 +16,22 @@ if errorlevel 1 exit /b 1
 
 if exist "%SOURCE_DIR%tools\windows\launch_ar_camera_ollama.bat" (
   copy /Y "%SOURCE_DIR%tools\windows\launch_ar_camera_ollama.bat" "%TARGET_DIR%\launch_ar_camera_ollama.bat" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not update launch_ar_camera_ollama.bat
+    echo Try running this script as administrator.
+    pause
+    exit /b 1
+  )
+)
+
+if exist "%SOURCE_DIR%tools\windows\start_app.bat" (
+  copy /Y "%SOURCE_DIR%tools\windows\start_app.bat" "%TARGET_DIR%\start_app.bat" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not update start_app.bat
+    echo Try running this script as administrator.
+    pause
+    exit /b 1
+  )
 )
 
 if exist "%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py" (

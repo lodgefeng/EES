@@ -136,6 +136,9 @@ if exist "%ENTRY_SOURCE%" (
     exit /b 1
   )
 )
+if exist "%HELPER_SOURCE%\tools\windows\start_app.bat" (
+  copy /Y "%HELPER_SOURCE%\tools\windows\start_app.bat" "%FEATURE_TARGET%\start_app.bat" >nul
+)
 if exist "%HELPER_SOURCE%\tools\windows\launch_ar_camera_ollama.bat" (
   copy /Y "%HELPER_SOURCE%\tools\windows\launch_ar_camera_ollama.bat" "%FEATURE_TARGET%\launch_ar_camera_ollama.bat" >nul
 )
@@ -151,6 +154,9 @@ if exist "%HELPER_SOURCE%\安装首页05按钮.bat" (
 )
 if exist "%HELPER_SOURCE%\修复首页05按钮.bat" (
   copy /Y "%HELPER_SOURCE%\修复首页05按钮.bat" "%FEATURE_TARGET%\修复首页05按钮.bat" >nul
+)
+if exist "%HELPER_SOURCE%\修复Creolight安装首页05按钮.bat" (
+  copy /Y "%HELPER_SOURCE%\修复Creolight安装首页05按钮.bat" "%FEATURE_TARGET%\修复Creolight安装首页05按钮.bat" >nul
 )
 echo Copied AI experiment feature to: "%FEATURE_TARGET%"
 exit /b 0
