@@ -29,6 +29,7 @@ BUTTON_05_TEXT = "05 | AR成像调节"
 BUTTON_06_TEXT = "06 | AI实验判断"
 _LEGACY_BUTTON_05_TEXT = "05 | AI实验判断"
 _NUMBERED_BUTTON_RE = re.compile(r"^\s*(\d{2})\s*\|")
+_PATCH_NUMBERS = (5, 6)
 _RUNTIME_HOOKED = False
 _LOG_PATH = os.path.join(
     os.environ.get("LOCALAPPDATA", ""),
@@ -59,31 +60,42 @@ def activate_menu_patch_runtime() -> None:
 def install_home_menu_buttons(main_window: QWidget) -> bool:
     _clear_stale_markers(main_window)
 
+    stack = _find_menu_button_stack(main_window)
+    if stack is None:
+        _log("menu stack not found")
+        return False
+
+    stack_parent, layout, stack_buttons, insert_after = stack
+    style_anchor = stack_buttons[-1]
+
+    _remove_all_patch_buttons(main_window, keep_parent=stack_parent, keep_layout=layout)
+
     menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
         (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
         (PATCH_MARKER_06, BUTTON_06_TEXT, _open_ai_experiment_llm_judgement),
     )
 
-    legacy = _find_button_by_text(main_window, _LEGACY_BUTTON_05_TEXT)
-    if legacy is not None and isinstance(legacy, QPushButton):
-        legacy.setText(BUTTON_05_TEXT)
-
-    stack = _find_menu_button_stack(main_window)
-    if stack is not None:
-        return _install_into_stack(main_window, stack, menu_buttons)
-
-    anchor = _find_anchor_button(main_window)
-    if anchor is None:
-        _log("anchor button 04 not found")
-        return False
-
     changed = False
-    current_anchor = anchor
+    next_index = insert_after + 1
     for marker, text, opener in menu_buttons:
-        if _ensure_button(main_window, current_anchor, marker, text, opener):
+        if _button_text_exists(main_window, text):
+            existing = _find_button_by_text(main_window, text)
+            if existing is not None and isinstance(existing, QPushButton):
+                setattr(main_window, marker, True)
+                continue
+        if _insert_into_stack(
+            main_window,
+            stack_parent,
+            layout,
+            style_anchor,
+            next_index,
+            marker,
+            text,
+            opener,
+        ):
+            next_index += 1
             changed = True
-            current_anchor = _find_button_by_text(main_window, text) or current_anchor
-    return changed
+    return changed or _buttons_ready(main_window)
 
 
 def schedule_ai_experiment_menu_button(main_window: QWidget) -> None:
@@ -101,10 +113,8 @@ def install_on_top_level_window() -> bool:
         return False
 
     installed = False
-    for widget in app.allWidgets():
+    for widget in app.topLevelWidgets():
         if not widget.isVisible():
-            continue
-        if widget.parentWidget() is not None and not widget.isWindow():
             continue
         if install_home_menu_buttons(widget):
             installed = True
@@ -114,7 +124,8 @@ def install_on_top_level_window() -> bool:
 class _ShowEventInstaller(QObject):
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if event.type() == QEvent.Show and isinstance(watched, QWidget):
-            QTimer.singleShot(0, lambda w=watched: install_home_menu_buttons(w))
+            if watched.isWindow():
+                QTimer.singleShot(0, lambda w=watched: install_home_menu_buttons(w))
         return False
 
 
@@ -132,6 +143,12 @@ def _install_show_event_filter() -> None:
 install_ai_experiment_menu_button = install_home_menu_buttons
 
 
+def _buttons_ready(main_window: QWidget) -> bool:
+    return _button_text_exists(main_window, BUTTON_05_TEXT) and _button_text_exists(
+        main_window, BUTTON_06_TEXT
+    )
+
+
 def _clear_stale_markers(main_window: QWidget) -> None:
     for marker, text in (
         (PATCH_MARKER_05, BUTTON_05_TEXT),
@@ -141,63 +158,49 @@ def _clear_stale_markers(main_window: QWidget) -> None:
             setattr(main_window, marker, False)
 
 
-def _install_into_stack(
-    main_window: QWidget,
-    stack: Tuple[QWidget, QLayout, List[QWidget], int],
-    menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...],
-) -> bool:
-    stack_parent, layout, stack_buttons, _last_index = stack
-    style_anchor = stack_buttons[-1]
-    changed = False
-    insert_after = _last_stack_index(layout, stack_buttons)
-    if insert_after < 0:
-        insert_after = max(0, layout.count() - 1)
+def _remove_all_patch_buttons(
+    root: QWidget,
+    keep_parent: Optional[QWidget] = None,
+    keep_layout: Optional[QLayout] = None,
+) -> None:
+    keepers = set()
+    if keep_parent is not None and keep_layout is not None:
+        for widget in _iter_patch_widgets(root):
+            if widget.parentWidget() == keep_parent and keep_layout.indexOf(widget) >= 0:
+                keepers.add(id(widget))
 
-    for marker, text, opener in menu_buttons:
-        existing = _find_button_by_text(main_window, text)
-        if existing is not None and isinstance(existing, QPushButton):
-            insert_after = _move_button_into_stack(
-                existing,
-                stack_parent,
-                layout,
-                style_anchor,
-                insert_after,
-            )
-            _rewire_button(existing, opener, main_window)
-            existing.show()
-            setattr(main_window, marker, True)
-            changed = True
+    for widget in _iter_patch_widgets(root):
+        if id(widget) in keepers:
             continue
-        if _insert_into_stack(
-            main_window,
-            stack_parent,
-            layout,
-            style_anchor,
-            insert_after,
-            marker,
-            text,
-            opener,
-        ):
-            insert_after += 1
-            changed = True
-    return changed
+        _destroy_widget(widget)
 
 
-def _ensure_button(
-    main_window: QWidget,
-    anchor: QWidget,
-    marker: str,
-    text: str,
-    opener: Callable[[QWidget, QWidget], None],
-) -> bool:
-    existing = _find_button_by_text(main_window, text)
-    if existing is not None and isinstance(existing, QPushButton):
-        _rewire_button(existing, opener, main_window)
-        existing.show()
-        setattr(main_window, marker, True)
-        return True
+def _iter_patch_widgets(root: QWidget) -> List[QWidget]:
+    widgets: List[QWidget] = []
+    for widget in _iter_clickable_widgets(root):
+        number = _button_number(widget)
+        if number in _PATCH_NUMBERS:
+            widgets.append(widget)
+            continue
+        text = _widget_label_text(widget).replace(" ", "")
+        if text in {
+            BUTTON_05_TEXT.replace(" ", ""),
+            BUTTON_06_TEXT.replace(" ", ""),
+            _LEGACY_BUTTON_05_TEXT.replace(" ", ""),
+        }:
+            widgets.append(widget)
+    return widgets
 
-    return _insert_after_anchor(main_window, anchor, marker, text, opener)
+
+def _destroy_widget(widget: QWidget) -> None:
+    parent = widget.parentWidget()
+    if parent is not None:
+        layout = parent.layout()
+        if layout is not None:
+            _remove_from_layout(layout, widget)
+    widget.hide()
+    widget.deleteLater()
+    _log(f"removed duplicate patch widget: {_widget_label_text(widget)}")
 
 
 def _insert_into_stack(
@@ -205,7 +208,7 @@ def _insert_into_stack(
     stack_parent: QWidget,
     layout: QLayout,
     style_anchor: QWidget,
-    insert_after: int,
+    insert_index: int,
     marker: str,
     text: str,
     opener: Callable[[QWidget, QWidget], None],
@@ -217,84 +220,15 @@ def _insert_into_stack(
     button.setStyleSheet(_button_style(style_anchor))
     _rewire_button(button, opener, main_window)
 
-    if not _insert_button_at(layout, insert_after + 1, button):
+    if not _insert_button_at(layout, insert_index, button):
         button.deleteLater()
         _log(f"failed stack insert for {text}")
         return False
 
     button.show()
     setattr(main_window, marker, True)
-    _log(f"inserted {text} into stack")
+    _log(f"inserted {text} into stack at {insert_index}")
     return True
-
-
-def _insert_after_anchor(
-    main_window: QWidget,
-    anchor: QWidget,
-    marker: str,
-    text: str,
-    opener: Callable[[QWidget, QWidget], None],
-) -> bool:
-    parent = anchor.parentWidget() or main_window
-    button = QPushButton(text, parent)
-    button.setObjectName(marker.lower())
-    _match_button_geometry(anchor, button)
-    button.setCursor(Qt.PointingHandCursor)
-    button.setStyleSheet(_button_style(anchor))
-    _rewire_button(button, opener, main_window)
-
-    layout, index = _find_layout_for_widget(anchor)
-    if layout is not None and index >= 0 and _insert_button_at(layout, index + 1, button):
-        button.show()
-        setattr(main_window, marker, True)
-        _log(f"inserted {text} via anchor layout")
-        return True
-
-    if _insert_button_by_geometry(anchor, button):
-        button.show()
-        button.raise_()
-        setattr(main_window, marker, True)
-        _log(f"inserted {text} via geometry")
-        return True
-
-    button.deleteLater()
-    _log(f"failed to insert {text}")
-    return False
-
-
-def _move_button_into_stack(
-    button: QPushButton,
-    stack_parent: QWidget,
-    layout: QLayout,
-    style_anchor: QWidget,
-    insert_after: int,
-) -> int:
-    _match_button_geometry(style_anchor, button)
-    target_index = insert_after + 1
-
-    current_index = layout.indexOf(button)
-    if button.parentWidget() == stack_parent and current_index >= 0:
-        if current_index != target_index:
-            _remove_from_layout(layout, button)
-            if _insert_button_at(layout, target_index, button):
-                return target_index
-            _insert_button_at(layout, current_index, button)
-            return current_index
-        return current_index
-
-    old_parent = button.parentWidget()
-    old_layout = old_parent.layout() if old_parent is not None else None
-    button.setParent(stack_parent)
-    if not _insert_button_at(layout, target_index, button):
-        if old_parent is not None:
-            button.setParent(old_parent)
-            if old_layout is not None:
-                _insert_button_at(old_layout, max(0, old_layout.count()), button)
-        return insert_after
-
-    if old_layout is not None and old_parent is not stack_parent:
-        _remove_from_layout(old_layout, button)
-    return target_index
 
 
 def _remove_from_layout(layout: QLayout, widget: QWidget) -> None:
@@ -329,23 +263,6 @@ def _insert_button_at(layout: QLayout, index: int, button: QPushButton) -> bool:
     return False
 
 
-def _insert_button_by_geometry(anchor: QWidget, button: QPushButton) -> bool:
-    parent = anchor.parentWidget()
-    if parent is None:
-        return False
-    anchor_geo = anchor.geometry()
-    if anchor_geo.width() <= 0 or anchor_geo.height() <= 0:
-        return False
-    spacing = 12
-    button.setGeometry(
-        anchor_geo.x(),
-        anchor_geo.y() + anchor_geo.height() + spacing,
-        anchor_geo.width(),
-        anchor_geo.height(),
-    )
-    return True
-
-
 def _last_stack_index(layout: QLayout, stack_buttons: List[QWidget]) -> int:
     last_index = -1
     for button in stack_buttons:
@@ -358,35 +275,35 @@ def _last_stack_index(layout: QLayout, stack_buttons: List[QWidget]) -> int:
 def _find_menu_button_stack(
     root: QWidget,
 ) -> Optional[Tuple[QWidget, QLayout, List[QWidget], int]]:
-    numbered_by_parent: dict[QWidget, List[QWidget]] = {}
-    for widget in _iter_clickable_widgets(root):
-        number = _button_number(widget)
-        if number is None or number > 4:
-            continue
-        parent = widget.parentWidget()
-        if parent is None:
-            continue
-        numbered_by_parent.setdefault(parent, []).append(widget)
-
-    best_parent: Optional[QWidget] = None
-    best_buttons: List[QWidget] = []
-    for _parent, buttons in numbered_by_parent.items():
-        unique = _unique_buttons_sorted(buttons)
-        if len(unique) > len(best_buttons):
-            best_parent = _parent
-            best_buttons = unique
-
-    if best_parent is None or len(best_buttons) < 3:
+    anchor = _find_anchor_button(root)
+    if anchor is None:
         return None
 
-    layout = best_parent.layout()
+    stack_parent = anchor.parentWidget()
+    if stack_parent is None:
+        return None
+
+    layout = stack_parent.layout()
     if layout is None:
         return None
 
-    last_index = _last_stack_index(layout, best_buttons)
+    stack_buttons: List[QWidget] = []
+    for widget in _iter_clickable_widgets(stack_parent):
+        number = _button_number(widget)
+        if number is not None and number <= 4:
+            stack_buttons.append(widget)
+
+    stack_buttons = _unique_buttons_sorted(stack_buttons)
+    if len(stack_buttons) < 3:
+        return None
+
+    last_index = _last_stack_index(layout, stack_buttons)
     if last_index < 0:
-        last_index = max(0, layout.count() - 1)
-    return best_parent, layout, best_buttons, last_index
+        last_index = layout.indexOf(anchor)
+    if last_index < 0:
+        return None
+
+    return stack_parent, layout, stack_buttons, last_index
 
 
 def _find_anchor_button(root: QWidget) -> Optional[QWidget]:
@@ -422,21 +339,6 @@ def _button_number(widget: QWidget) -> Optional[int]:
     if not match:
         return None
     return int(match.group(1))
-
-
-def _find_layout_for_widget(widget: QWidget) -> Tuple[Optional[QLayout], int]:
-    current = widget
-    while current is not None:
-        parent = current.parentWidget()
-        if parent is None:
-            break
-        layout = parent.layout()
-        if layout is not None:
-            index = layout.indexOf(current)
-            if index >= 0:
-                return layout, index
-        current = parent
-    return None, -1
 
 
 def _match_button_geometry(anchor: QWidget, button: QPushButton) -> None:
@@ -503,27 +405,7 @@ def _button_style(anchor: QWidget) -> str:
     anchor_style = anchor.styleSheet().strip()
     if anchor_style:
         return anchor_style
-    return (
-        "QPushButton {"
-        "color: #1f2937;"
-        "font-size: 22px;"
-        "font-weight: 600;"
-        "text-align: left;"
-        "padding: 18px 28px;"
-        "border: 1px solid #c4b5fd;"
-        "border-radius: 18px;"
-        "background: qlineargradient("
-        "x1:0, y1:0, x2:0, y2:1,"
-        "stop:0 #ddd6fe, stop:1 #a78bfa"
-        ");"
-        "}"
-        "QPushButton:hover {"
-        "background: qlineargradient("
-        "x1:0, y1:0, x2:0, y2:1,"
-        "stop:0 #ede9fe, stop:1 #c4b5fd"
-        ");"
-        "}"
-    )
+    return ""
 
 
 def _open_ar_imaging_adjustment(main_window: QWidget, _button: QWidget) -> None:
