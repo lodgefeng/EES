@@ -91,6 +91,7 @@ def _start_overlay_worker() -> None:
                 continue
             install_home_menu_buttons(widget)
             _install_floating_menu_buttons(widget)
+            _install_satellite_menu_window(widget)
 
         if not _any_patch_buttons_visible(app) and attempt < 160:
             QTimer.singleShot(500, lambda: tick(attempt + 1))
@@ -128,6 +129,8 @@ def _home_window_score(widget: QWidget) -> int:
 
 
 def _any_patch_buttons_visible(app: QApplication) -> bool:
+    if _satellite_buttons_ready():
+        return True
     for widget in app.topLevelWidgets():
         if _buttons_ready(widget):
             return True
@@ -171,8 +174,9 @@ def _install_home_menu_buttons(main_window: QWidget) -> bool:
     if _install_overlay_buttons(main_window):
         return True
 
-    for widget in _iter_patch_widgets(main_window):
-        _destroy_widget(widget)
+    if _install_satellite_menu_window(main_window):
+        return True
+
     _dump_menu_widgets_once(main_window)
     _log("menu stack not found; will retry on next timer")
     return False
@@ -292,6 +296,8 @@ def _install_menu_buttons(
 
 
 def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
+    if _satellite_buttons_ready():
+        return True
     if not _buttons_ready(main_window):
         return False
 
@@ -304,6 +310,11 @@ def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
             continue
         if button.parentWidget() == main_window:
             continue
+        app = QApplication.instance()
+        if app is not None:
+            satellite = getattr(app, "_creolight_satellite_menu_win", None)
+            if satellite is not None and button.parentWidget() == satellite:
+                continue
 
         layout_stack = _find_menu_button_stack(main_window)
         if layout_stack is not None:
@@ -409,6 +420,8 @@ install_ai_experiment_menu_button = install_home_menu_buttons
 
 
 def _buttons_ready(main_window: QWidget) -> bool:
+    if _satellite_buttons_ready():
+        return True
     return (
         _find_menu_button(main_window, BUTTON_05_TEXT) is not None
         and _find_menu_button(main_window, BUTTON_06_TEXT) is not None
@@ -1118,6 +1131,95 @@ def _floating_button_style(index: int) -> str:
     )
 
 
+def _install_satellite_menu_window(main_window: QWidget) -> bool:
+    app = QApplication.instance()
+    if app is None:
+        return False
+    if _satellite_buttons_ready():
+        _position_satellite_window(main_window)
+        return True
+
+    satellite_attr = "_creolight_satellite_menu_win"
+    satellite: Optional[QWidget] = getattr(app, satellite_attr, None)
+    if satellite is None:
+        satellite = QWidget(None, Qt.Window | Qt.WindowStaysOnTopHint | Qt.Tool)
+        satellite.setObjectName("creolight_satellite_menu")
+        satellite.setAttribute(Qt.WA_QuitOnClose, False)
+        layout = QVBoxLayout(satellite)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(10)
+        setattr(app, satellite_attr, satellite)
+    else:
+        layout = satellite.layout()
+        if layout is None:
+            layout = QVBoxLayout(satellite)
+            layout.setContentsMargins(8, 8, 8, 8)
+            layout.setSpacing(10)
+
+    setattr(app, "_creolight_satellite_home", main_window)
+
+    menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
+        (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
+        (PATCH_MARKER_06, BUTTON_06_TEXT, _open_ai_experiment_llm_judgement),
+    )
+
+    if isinstance(layout, QVBoxLayout):
+        while layout.count():
+            item = layout.takeAt(0)
+            child = item.widget()
+            if child is not None:
+                child.deleteLater()
+
+    for index, (marker, text, opener) in enumerate(menu_buttons):
+        button = QPushButton(text, satellite)
+        button.setObjectName(marker.lower())
+        button.setMinimumHeight(64)
+        button.setStyleSheet(_floating_button_style(index))
+        button.setCursor(Qt.PointingHandCursor)
+        _rewire_button(button, opener, main_window)
+        if isinstance(layout, QVBoxLayout):
+            layout.addWidget(button)
+        setattr(main_window, marker, True)
+
+    _position_satellite_window(main_window, satellite)
+    satellite.show()
+    satellite.raise_()
+    _log("satellite menu window 05/06 shown")
+    return True
+
+
+def _position_satellite_window(
+    main_window: QWidget,
+    satellite: Optional[QWidget] = None,
+) -> None:
+    app = QApplication.instance()
+    if app is None:
+        return
+    if satellite is None:
+        satellite = getattr(app, "_creolight_satellite_menu_win", None)
+    if satellite is None or not main_window.isVisible():
+        return
+    geo = main_window.frameGeometry()
+    width = max(int(geo.width() * 0.44), 360)
+    height = 170
+    x = geo.x() + int(geo.width() * 0.28)
+    y = geo.y() + int(geo.height() * 0.52)
+    satellite.setGeometry(x, y, width, height)
+
+
+def _satellite_buttons_ready() -> bool:
+    app = QApplication.instance()
+    if app is None:
+        return False
+    satellite = getattr(app, "_creolight_satellite_menu_win", None)
+    if satellite is None:
+        return False
+    return (
+        _find_menu_button_on_widget(satellite, BUTTON_05_TEXT) is not None
+        and _find_menu_button_on_widget(satellite, BUTTON_06_TEXT) is not None
+    )
+
+
 def _find_visual_anchor_widget(root: QWidget) -> Optional[QWidget]:
     visual = _find_visual_button_stack(root)
     if visual is not None:
@@ -1237,11 +1339,25 @@ def _button_text_exists(root: QWidget, text: str) -> bool:
     return _find_menu_button(root, text) is not None
 
 
-def _find_menu_button(root: QWidget, text: str) -> Optional[QPushButton]:
+def _find_menu_button_on_widget(root: QWidget, text: str) -> Optional[QPushButton]:
     compact_target = text.replace(" ", "")
     for button in root.findChildren(QPushButton):
         if _widget_label_text(button).replace(" ", "") == compact_target:
             return button
+    return None
+
+
+def _find_menu_button(root: QWidget, text: str) -> Optional[QPushButton]:
+    button = _find_menu_button_on_widget(root, text)
+    if button is not None:
+        return button
+    app = QApplication.instance()
+    if app is not None:
+        satellite = getattr(app, "_creolight_satellite_menu_win", None)
+        if satellite is not None:
+            button = _find_menu_button_on_widget(satellite, text)
+            if button is not None:
+                return button
     return None
 
 
