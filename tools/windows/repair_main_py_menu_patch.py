@@ -17,8 +17,16 @@ def repair_main_py(main_py: Path) -> tuple[bool, str]:
     original = main_py.read_text(encoding="utf-8")
     backup = main_py.with_suffix(main_py.suffix + BACKUP_SUFFIX)
 
-    if MARKER not in original and "schedule_ai_experiment_menu_button" not in original:
-        return True, "no button-05 patch found in main.py"
+    syntax_ok, syntax_error = _syntax_ok(original)
+    has_patch = MARKER in original or "schedule_ai_experiment_menu_button" in original
+
+    if not has_patch:
+        if syntax_ok:
+            return True, "main.py syntax OK, no button-05 patch found"
+        restored, message = _restore_backup(main_py, backup)
+        if restored:
+            return True, message
+        return False, f"main.py syntax broken and no backup to restore: {syntax_error}"
 
     if not backup.exists():
         backup.write_text(original, encoding="utf-8")
@@ -29,29 +37,57 @@ def repair_main_py(main_py: Path) -> tuple[bool, str]:
     repaired = _remove_helper_functions(repaired)
     repaired = _cleanup_blank_lines(repaired)
 
-    try:
-        ast.parse(repaired)
-    except SyntaxError as exc:
-        if backup.exists():
-            repaired = backup.read_text(encoding="utf-8")
-            main_py.write_text(repaired, encoding="utf-8")
-            return False, f"repair still invalid, restored backup: {exc}"
-        return False, f"repair invalid and no backup: {exc}"
+    ok, error = _syntax_ok(repaired)
+    if ok:
+        main_py.write_text(repaired, encoding="utf-8")
+        return True, "repaired main.py (removed button-05 source patch)"
 
-    main_py.write_text(repaired, encoding="utf-8")
-    return True, "repaired main.py (removed button-05 source patch)"
+    restored, message = _restore_backup(main_py, backup)
+    if restored:
+        return True, message
+    return False, f"repair still invalid: {error}"
+
+
+def _restore_backup(main_py: Path, backup: Path) -> tuple[bool, str]:
+    if not backup.exists():
+        return False, "no backup file"
+    restored = backup.read_text(encoding="utf-8")
+    ok, error = _syntax_ok(restored)
+    if not ok:
+        return False, f"backup also invalid: {error}"
+    main_py.write_text(restored, encoding="utf-8")
+    return True, "restored main.py from backup"
+
+
+def _syntax_ok(text: str) -> tuple[bool, str | None]:
+    try:
+        ast.parse(text)
+        return True, None
+    except SyntaxError as exc:
+        return False, str(exc)
 
 
 def _remove_import_block(text: str) -> str:
-    pattern = (
-        rf"(?m)^# {re.escape(MARKER)}\s*\n"
-        r"try:\n"
-        r"    from app\.home_menu_patch import schedule_ai_experiment_menu_button\n"
-        r"except Exception:\n"
-        r"    schedule_ai_experiment_menu_button = None\n"
-        r"\n?"
-    )
-    return re.sub(pattern, "", text)
+    patterns = [
+        (
+            rf"(?m)^# {re.escape(MARKER)}\s*\n"
+            r"try:\n"
+            r"    from app\.home_menu_patch import schedule_ai_experiment_menu_button\n"
+            r"except Exception:\n"
+            r"    schedule_ai_experiment_menu_button = None\n"
+            r"\n?"
+        ),
+        (
+            r"(?m)^try:\n"
+            r"    from app\.home_menu_patch import schedule_ai_experiment_menu_button\n"
+            r"except Exception:\n"
+            r"    schedule_ai_experiment_menu_button = None\n"
+            r"\n?"
+        ),
+    ]
+    for pattern in patterns:
+        text = re.sub(pattern, "", text)
+    return text
 
 
 def _remove_schedule_call(text: str) -> str:
@@ -79,7 +115,7 @@ def _remove_helper_functions(text: str) -> str:
             r"def _schedule_ai_experiment_menu_button\(window\):\n"
             r"    try:\n"
             r"        from app\.home_menu_patch import schedule_ai_experiment_menu_button\n"
-            r"        schedule_ai_experiment_menu_button\(window\)\n"
+            r"        schedule_ai_experiment_menu_button\(window)\n"
             r"    except Exception:\n"
             r"        pass\n"
             r"\n?"

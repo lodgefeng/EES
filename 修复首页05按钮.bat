@@ -35,10 +35,9 @@ if exist "%SOURCE_DIR%tools\windows\start_app.bat" (
 )
 
 if exist "%SOURCE_DIR%tools\windows\repair_main_py_menu_patch.py" (
-  for %%P in ("%TARGET_DIR%\python_venv\Scripts\python.exe" "py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
-    if exist "%TARGET_DIR%\app\main.py" (
-      %%~P "%SOURCE_DIR%tools\windows\repair_main_py_menu_patch.py" "%TARGET_DIR%" && goto patched
-    )
+  set "VENV_PY=%TARGET_DIR%\python_venv\Scripts\python.exe"
+  if exist "%VENV_PY%" if exist "%TARGET_DIR%\app\main.py" (
+    "%VENV_PY%" "%SOURCE_DIR%tools\windows\repair_main_py_menu_patch.py" "%TARGET_DIR%" && goto patched
   )
 )
 

@@ -6,6 +6,8 @@ set "ZIP_URL=https://github.com/lodgefeng/EES/archive/refs/heads/cursor/fix-pyth
 set "WORK_DIR=%TEMP%\creolight_button05_fix"
 set "ZIP_PATH=%WORK_DIR%\helpers.zip"
 set "EXTRACT_DIR=%WORK_DIR%\extract"
+set "VENV_PY=%INSTALL_DIR%\python_venv\Scripts\python.exe"
+set "REPAIR_PY="
 
 net session >nul 2>&1
 if errorlevel 1 (
@@ -59,22 +61,40 @@ if not defined HELPER_ROOT (
   exit /b 1
 )
 
+set "REPAIR_PY=%HELPER_ROOT%\tools\windows\repair_main_py_menu_patch.py"
+
 echo [2/2] Repairing app\main.py ...
 set "REPAIRED=0"
-for %%P in ("%INSTALL_DIR%\python_venv\Scripts\python.exe" "py -3.11" "py -3.10" "py -3.9" "py -3" "python" "python3") do (
-  %%~P "%HELPER_ROOT%\tools\windows\repair_main_py_menu_patch.py" "%INSTALL_DIR%"
-  if not errorlevel 1 set "REPAIRED=1" & goto repaired
+
+if exist "%VENV_PY%" (
+  echo Using: "%VENV_PY%"
+  "%VENV_PY%" "%REPAIR_PY%" "%INSTALL_DIR%"
+  if not errorlevel 1 set "REPAIRED=1"
+)
+
+if not "%REPAIRED%"=="1" (
+  echo venv python failed, trying system python...
+  for %%P in (python python3) do (
+    where %%P >nul 2>&1
+    if not errorlevel 1 (
+      %%P "%REPAIR_PY%" "%INSTALL_DIR%"
+      if not errorlevel 1 set "REPAIRED=1" & goto repaired
+    )
+  )
 )
 
 :repaired
 if not "%REPAIRED%"=="1" (
+  echo.
   echo ERROR: Could not run repair tool.
+  echo Check that this file exists:
+  echo   "%VENV_PY%"
   pause
   exit /b 1
 )
 
 echo.
-echo Done. main.py should start normally again.
+echo Repair finished successfully.
 echo Button 05 still works via launcher_entry runtime patch.
 echo.
 echo Next:
