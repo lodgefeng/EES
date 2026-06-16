@@ -115,7 +115,7 @@ def _remove_helper_functions(text: str) -> str:
             r"def _schedule_ai_experiment_menu_button\(window\):\n"
             r"    try:\n"
             r"        from app\.home_menu_patch import schedule_ai_experiment_menu_button\n"
-            r"        schedule_ai_experiment_menu_button\(window)\n"
+            r"        schedule_ai_experiment_menu_button\(window\)\n"
             r"    except Exception:\n"
             r"        pass\n"
             r"\n?"
