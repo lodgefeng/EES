@@ -53,15 +53,39 @@ launch_ai_experiment_judgement.bat
 
 ## 首页按钮接入
 
-由于当前仓库没有真实首页源码，需要在本机项目的首页代码里手动接入。
+运行下面脚本，会自动：
 
-目标是在首页下面增加一个按钮：
+1. 复制 `ai_experiment_judgement.py` 和 `home_menu_patch.py`
+2. 给 `app\main.py` 打补丁
+3. 在首页 `04 | 光学小实验` 下面插入 `05 | AI实验判断`
 
 ```text
-05 | AI实验判断
+安装首页05按钮.bat
 ```
 
-PySide6 接入示例：
+也可以先更新 helper，再运行：
+
+```text
+下载并安装新脚本.bat
+安装首页05按钮.bat
+```
+
+补丁完成后，重新启动主程序，首页就会出现第 5 个按钮。
+
+如果仍看不到，确认这两个文件存在：
+
+```text
+C:\Users\lodge\AR_Camera_Ollama\app\home_menu_patch.py
+C:\Users\lodge\AR_Camera_Ollama\app\main.py
+```
+
+并检查 `main.py` 里是否包含标记：
+
+```text
+AI_EXPERIMENT_JUDGEMENT_MENU_PATCH
+```
+
+## 手动接入（备用）
 
 ```python
 from app.ai_experiment_judgement import AIExperimentJudgementWindow

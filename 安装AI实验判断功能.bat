@@ -13,7 +13,9 @@ for %%I in ("%PROJECT_DIR%.") do set "PROJECT_DIR=%%~fI"
 for %%I in ("%FIXED_DIR%.") do set "FIXED_DIR=%%~fI"
 
 set "FEATURE_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
+set "PATCH_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\home_menu_patch.py"
 set "LAUNCHER_FILE=%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat"
+set "MENU_PATCHER=%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py"
 
 echo Installing AI experiment judgement feature...
 echo Project:
@@ -25,6 +27,13 @@ echo.
 if not exist "%FEATURE_FILE%" (
   echo ERROR: Missing feature file:
   echo   "%FEATURE_FILE%"
+  pause
+  exit /b 1
+)
+
+if not exist "%PATCH_FILE%" (
+  echo ERROR: Missing home menu patch file:
+  echo   "%PATCH_FILE%"
   pause
   exit /b 1
 )
@@ -53,9 +62,8 @@ echo.
 echo Test from project root:
 echo   launch_ai_experiment_judgement.bat
 echo.
-echo To show it on the home page, add a fifth button named:
-echo   05 ^| AI实验判断
-echo and connect it to app.ai_experiment_judgement.AIExperimentJudgementWindow.
+echo To add the home page button, run:
+echo   安装首页05按钮.bat
 echo.
 pause
 exit /b 0
@@ -72,6 +80,13 @@ if not exist "%TARGET%\app" mkdir "%TARGET%\app" >nul 2>&1
 copy /Y "%FEATURE_FILE%" "%TARGET%\app\ai_experiment_judgement.py" >nul
 if errorlevel 1 (
   echo ERROR: Could not copy feature module to:
+  echo   "%TARGET%\app"
+  pause
+  exit /b 1
+)
+copy /Y "%PATCH_FILE%" "%TARGET%\app\home_menu_patch.py" >nul
+if errorlevel 1 (
+  echo ERROR: Could not copy home menu patch to:
   echo   "%TARGET%\app"
   pause
   exit /b 1

@@ -119,3 +119,9 @@ Integration notes are in:
 ```text
 docs/AI_EXPERIMENT_JUDGEMENT.md
 ```
+
+To show button `05 | AI实验判断` on the home page:
+
+```text
+安装首页05按钮.bat
+```

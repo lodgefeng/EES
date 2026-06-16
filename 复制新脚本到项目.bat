@@ -110,6 +110,7 @@ exit /b 0
 :copy_ai_feature
 set "FEATURE_TARGET=%~1"
 set "FEATURE_SOURCE=%SOURCE_DIR%feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
+set "PATCH_SOURCE=%SOURCE_DIR%feature\ai_experiment_judgement\app\home_menu_patch.py"
 if not exist "%FEATURE_SOURCE%" exit /b 0
 if not exist "%FEATURE_TARGET%\app" mkdir "%FEATURE_TARGET%\app" >nul 2>&1
 copy /Y "%FEATURE_SOURCE%" "%FEATURE_TARGET%\app\ai_experiment_judgement.py" >nul
@@ -119,8 +120,24 @@ if errorlevel 1 (
   pause
   exit /b 1
 )
+if exist "%PATCH_SOURCE%" (
+  copy /Y "%PATCH_SOURCE%" "%FEATURE_TARGET%\app\home_menu_patch.py" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not copy home menu patch to:
+    echo   "%FEATURE_TARGET%\app"
+    pause
+    exit /b 1
+  )
+)
 if exist "%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat" (
   copy /Y "%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat" "%FEATURE_TARGET%\launch_ai_experiment_judgement.bat" >nul
+)
+if exist "%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py" (
+  if not exist "%FEATURE_TARGET%\tools\windows" mkdir "%FEATURE_TARGET%\tools\windows" >nul 2>&1
+  copy /Y "%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py" "%FEATURE_TARGET%\tools\windows\patch_main_menu_button_05.py" >nul
+)
+if exist "%SOURCE_DIR%安装首页05按钮.bat" (
+  copy /Y "%SOURCE_DIR%安装首页05按钮.bat" "%FEATURE_TARGET%\安装首页05按钮.bat" >nul
 )
 echo Copied AI experiment feature to: "%FEATURE_TARGET%"
 exit /b 0
