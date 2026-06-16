@@ -63,6 +63,15 @@ if exist "%PATCH_LOG%" (
   echo   This usually means the patch runtime never started.
 )
 echo.
+echo [7] LOCALAPPDATA patch cache
+set "PATCH_CACHE=%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\patch_runtime\app"
+if exist "%PATCH_CACHE%\home_menu_patch.py" (
+  echo   [OK] %PATCH_CACHE%\home_menu_patch.py
+) else (
+  echo   [MISSING] %PATCH_CACHE%\home_menu_patch.py
+  echo   Start the app once so launcher_entry can download the latest patch.
+)
+echo.
 pause
 exit /b 0
 

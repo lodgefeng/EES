@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import re
+import traceback
 from collections import defaultdict
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple, Union
@@ -73,6 +74,15 @@ def activate_menu_patch_runtime() -> None:
 
 
 def install_home_menu_buttons(main_window: QWidget) -> bool:
+    try:
+        return _install_home_menu_buttons(main_window)
+    except Exception:
+        _log("install_home_menu_buttons failed")
+        _log(traceback.format_exc())
+        return False
+
+
+def _install_home_menu_buttons(main_window: QWidget) -> bool:
     _clear_stale_markers(main_window)
 
     legacy = _find_button_by_text(main_window, _LEGACY_BUTTON_05_TEXT)
@@ -653,16 +663,22 @@ def _pick_menu_container(widget: QWidget) -> QWidget:
     best = widget
     while current.parentWidget() is not None:
         parent = current.parentWidget()
-        numbers = {
-            number
-            for number, _ in _scan_menu_containers(parent)
-            if number is not None and number <= 4
-        }
-        if len(numbers) > 1:
+        if len(_menu_numbers_in_widget_subtree(parent)) > 1:
             break
         best = current
         current = parent
     return best
+
+
+def _menu_numbers_in_widget_subtree(widget: QWidget) -> set[int]:
+    numbers: set[int] = set()
+    for child in widget.findChildren(QWidget):
+        number = _extract_menu_number(_combined_widget_text(child))
+        if number is not None and 1 <= number <= 4:
+            numbers.add(number)
+        if len(numbers) >= 4:
+            break
+    return numbers
 
 
 def _scan_menu_containers(root: QWidget) -> List[Tuple[int, QWidget]]:

@@ -71,6 +71,7 @@ if errorlevel 1 goto copy_failed
 copy /Y "%HELPER_ROOT%\tools\windows\launch_ar_camera_ollama.bat" "%INSTALL_DIR%\launch_ar_camera_ollama.bat" >nul
 if errorlevel 1 goto copy_failed
 copy /Y "%HELPER_ROOT%\diagnose_home_menu_patch.bat" "%INSTALL_DIR%\diagnose_home_menu_patch.bat" >nul
+copy /Y "%HELPER_ROOT%\sync_patch_no_admin.bat" "%INSTALL_DIR%\sync_patch_no_admin.bat" >nul
 
 echo [3/4] Repairing app\main.py if a broken source patch exists...
 set "VENV_PY=%INSTALL_DIR%\python_venv\Scripts\python.exe"
@@ -83,6 +84,7 @@ echo [4/4] Verifying files...
 set "MISSING=0"
 call :check_file "%INSTALL_DIR%\app\home_menu_patch.py"
 call :check_file "%INSTALL_DIR%\app\launcher_entry.py"
+call :check_file "%INSTALL_DIR%\app\patch_sync.py"
 call :check_file "%INSTALL_DIR%\app\ar_imaging_adjustment.py"
 call :check_file "%INSTALL_DIR%\app\ai_experiment_llm_judgement.py"
 call :check_file "%INSTALL_DIR%\app\experiment_shared.py"
@@ -105,6 +107,9 @@ echo Next steps:
 echo   1. Close AR Camera Ollama completely
 echo   2. Open again from desktop shortcut
 echo   3. You should see buttons 05 and 06 on the home page
+echo.
+echo After this one-time install, future patch updates download automatically
+echo into LOCALAPPDATA when the app starts. You do not need to keep downloading zip.
 echo.
 echo If buttons are still missing, run:
 echo   diagnose_home_menu_patch.bat
