@@ -44,7 +44,7 @@ exit /b 1
 echo.
 echo Home menu patch finished.
 echo Restart AR Camera Ollama and check button:
-echo   05 ^| AI实验判断
+echo   05 button on home page
 echo.
 pause
 exit /b 0

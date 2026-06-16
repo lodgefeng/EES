@@ -75,13 +75,19 @@ launch_ai_experiment_judgement.bat
 C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
 ```
 
-请运行（推荐，自动从 GitHub 下载并写入 Program Files）：
+请运行（推荐，纯英文文件名，避免 cmd 编码错误）：
+
+```text
+fix_program_files_button_05.bat
+```
+
+双击即可，会自动请求管理员权限，并从 GitHub 下载补丁文件写入 Program Files。
+
+中文文件名包装脚本（效果相同）：
 
 ```text
 直接从GitHub修复ProgramFiles首页05按钮.bat
 ```
-
-双击即可，会自动请求管理员权限。
 
 如果本地已有 helper 包，也可以运行：
 

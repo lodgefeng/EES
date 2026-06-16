@@ -73,7 +73,7 @@ if exist "%TARGET_DIR%\app\ai_experiment_judgement.py" (
 echo.
 echo Done. Close the app and open it again from the desktop shortcut.
 echo You should see:
-echo   05 ^| AI实验判断
+echo   05 button on home page
 echo.
 echo If button 05 is still missing, check:
 echo   %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log

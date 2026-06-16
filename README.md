@@ -135,16 +135,24 @@ C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
 run:
 
 ```text
-直接从GitHub修复ProgramFiles首页05按钮.bat
+fix_program_files_button_05.bat
 ```
 
-Double-click it. It downloads the latest patch files from GitHub and writes them into Program Files automatically (admin permission required).
+Double-click it. It downloads the latest patch files from GitHub and writes them into Program Files automatically (admin permission required). Use this ASCII-named file on Chinese Windows to avoid batch encoding errors.
+
+Chinese-named wrapper (same behavior):
+
+```text
+直接从GitHub修复ProgramFiles首页05按钮.bat
+```
 
 If you already have the helper package locally, you can also run:
 
 ```text
 修复Creolight安装首页05按钮.bat
-``` After restart, check:
+```
+
+After restart, check:
 
 ```text
 %LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
