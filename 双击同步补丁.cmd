@@ -8,7 +8,8 @@ set "INSTALL_DIR=C:\Program Files\Creolight\AR_Camera_Ollama"
 set "RAW=https://raw.githubusercontent.com/lodgefeng/EES/cursor/fix-python-venv-launch-e627/feature/ai_experiment_judgement/app"
 
 echo ================================================
-echo Creolight patch sync - double click to run
+echo Creolight patch sync (legacy fallback)
+echo Recommended: run 直接安装到ProgramFiles.bat instead
 echo ================================================
 echo.
 

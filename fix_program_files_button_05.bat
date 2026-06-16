@@ -82,6 +82,9 @@ if exist "%VENV_PY%" if exist "%HELPER_ROOT%\tools\windows\repair_main_py_menu_p
 
 echo [4/4] Verifying files...
 set "MISSING=0"
+    if exist "%INSTALL_DIR%\app\bootstrap_main.py" (
+call :check_file "%INSTALL_DIR%\app\bootstrap_main.py"
+)
 call :check_file "%INSTALL_DIR%\app\home_menu_patch.py"
 call :check_file "%INSTALL_DIR%\app\launcher_entry.py"
 call :check_file "%INSTALL_DIR%\app\patch_sync.py"
@@ -106,10 +109,10 @@ echo.
 echo Next steps:
 echo   1. Close AR Camera Ollama completely
 echo   2. Open again from desktop shortcut
-echo   3. You should see buttons 05 and 06 on the home page
+echo   3. You should see buttons 05 and 06 on the home page (or a small extension window)
 echo.
-echo After this one-time install, future patch updates download automatically
-echo into LOCALAPPDATA when the app starts. You do not need to keep downloading zip.
+echo Fastest install from this repo folder:
+echo   直接安装到ProgramFiles.bat
 echo.
 echo If buttons are still missing, run:
 echo   diagnose_home_menu_patch.bat
