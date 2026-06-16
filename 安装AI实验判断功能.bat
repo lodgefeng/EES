@@ -86,25 +86,11 @@ if not exist "%TARGET%\" (
   exit /b 1
 )
 if not exist "%TARGET%\app" mkdir "%TARGET%\app" >nul 2>&1
-copy /Y "%FEATURE_FILE%" "%TARGET%\app\ai_experiment_judgement.py" >nul
-if errorlevel 1 (
-  echo ERROR: Could not copy feature module to:
-  echo   "%TARGET%\app"
-  pause
-  exit /b 1
-)
-copy /Y "%PATCH_FILE%" "%TARGET%\app\home_menu_patch.py" >nul
-if errorlevel 1 (
-  echo ERROR: Could not copy home menu patch to:
-  echo   "%TARGET%\app"
-  pause
-  exit /b 1
-)
-if exist "%ENTRY_FILE%" (
-  copy /Y "%ENTRY_FILE%" "%TARGET%\app\launcher_entry.py" >nul
+for %%F in ("%SOURCE_DIR%feature\ai_experiment_judgement\app\*.py") do (
+  copy /Y "%%~fF" "%TARGET%\app\%%~nxF" >nul
   if errorlevel 1 (
-    echo ERROR: Could not copy launcher entry to:
-    echo   "%TARGET%\app"
+    echo ERROR: Could not copy feature module:
+    echo   "%%~fF"
     pause
     exit /b 1
   )

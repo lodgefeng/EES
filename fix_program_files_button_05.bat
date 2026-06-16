@@ -64,11 +64,7 @@ if not defined HELPER_ROOT (
 echo [2/4] Copying patch files into Program Files...
 if not exist "%INSTALL_DIR%\app" mkdir "%INSTALL_DIR%\app" >nul 2>&1
 
-copy /Y "%HELPER_ROOT%\feature\ai_experiment_judgement\app\ai_experiment_judgement.py" "%INSTALL_DIR%\app\ai_experiment_judgement.py" >nul
-if errorlevel 1 goto copy_failed
-copy /Y "%HELPER_ROOT%\feature\ai_experiment_judgement\app\home_menu_patch.py" "%INSTALL_DIR%\app\home_menu_patch.py" >nul
-if errorlevel 1 goto copy_failed
-copy /Y "%HELPER_ROOT%\feature\ai_experiment_judgement\app\launcher_entry.py" "%INSTALL_DIR%\app\launcher_entry.py" >nul
+copy /Y "%HELPER_ROOT%\feature\ai_experiment_judgement\app\*.py" "%INSTALL_DIR%\app\" >nul
 if errorlevel 1 goto copy_failed
 copy /Y "%HELPER_ROOT%\tools\windows\start_app.bat" "%INSTALL_DIR%\start_app.bat" >nul
 if errorlevel 1 goto copy_failed
@@ -86,7 +82,10 @@ echo [4/4] Verifying files...
 set "MISSING=0"
 call :check_file "%INSTALL_DIR%\app\home_menu_patch.py"
 call :check_file "%INSTALL_DIR%\app\launcher_entry.py"
-call :check_file "%INSTALL_DIR%\app\ai_experiment_judgement.py"
+call :check_file "%INSTALL_DIR%\app\ar_imaging_adjustment.py"
+call :check_file "%INSTALL_DIR%\app\ai_experiment_llm_judgement.py"
+call :check_file "%INSTALL_DIR%\app\experiment_shared.py"
+call :check_file "%INSTALL_DIR%\app\jbd4020_cast_support.py"
 call :check_file "%INSTALL_DIR%\start_app.bat"
 call :check_file "%INSTALL_DIR%\launch_ar_camera_ollama.bat"
 

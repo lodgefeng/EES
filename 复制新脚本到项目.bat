@@ -114,26 +114,10 @@ set "PATCH_SOURCE=%SOURCE_DIR%feature\ai_experiment_judgement\app\home_menu_patc
 set "ENTRY_SOURCE=%SOURCE_DIR%feature\ai_experiment_judgement\app\launcher_entry.py"
 if not exist "%FEATURE_SOURCE%" exit /b 0
 if not exist "%FEATURE_TARGET%\app" mkdir "%FEATURE_TARGET%\app" >nul 2>&1
-copy /Y "%FEATURE_SOURCE%" "%FEATURE_TARGET%\app\ai_experiment_judgement.py" >nul
-if errorlevel 1 (
-  echo ERROR: Could not copy AI experiment feature to:
-  echo   "%FEATURE_TARGET%\app"
-  pause
-  exit /b 1
-)
-if exist "%PATCH_SOURCE%" (
-  copy /Y "%PATCH_SOURCE%" "%FEATURE_TARGET%\app\home_menu_patch.py" >nul
+for %%F in ("%SOURCE_DIR%feature\ai_experiment_judgement\app\*.py") do (
+  copy /Y "%%~fF" "%FEATURE_TARGET%\app\%%~nxF" >nul
   if errorlevel 1 (
-    echo ERROR: Could not copy home menu patch to:
-    echo   "%FEATURE_TARGET%\app"
-    pause
-    exit /b 1
-  )
-)
-if exist "%ENTRY_SOURCE%" (
-  copy /Y "%ENTRY_SOURCE%" "%FEATURE_TARGET%\app\launcher_entry.py" >nul
-  if errorlevel 1 (
-    echo ERROR: Could not copy launcher entry to:
+    echo ERROR: Could not copy AI experiment feature to:
     echo   "%FEATURE_TARGET%\app"
     pause
     exit /b 1
