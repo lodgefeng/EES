@@ -108,6 +108,7 @@ set "HELPER_SOURCE=%~1"
 set "FEATURE_TARGET=%~2"
 set "FEATURE_SOURCE=%HELPER_SOURCE%\feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
 set "PATCH_SOURCE=%HELPER_SOURCE%\feature\ai_experiment_judgement\app\home_menu_patch.py"
+set "ENTRY_SOURCE=%HELPER_SOURCE%\feature\ai_experiment_judgement\app\launcher_entry.py"
 if not exist "%FEATURE_SOURCE%" exit /b 0
 if not exist "%FEATURE_TARGET%\app" mkdir "%FEATURE_TARGET%\app" >nul 2>&1
 copy /Y "%FEATURE_SOURCE%" "%FEATURE_TARGET%\app\ai_experiment_judgement.py" >nul
@@ -126,6 +127,18 @@ if exist "%PATCH_SOURCE%" (
     exit /b 1
   )
 )
+if exist "%ENTRY_SOURCE%" (
+  copy /Y "%ENTRY_SOURCE%" "%FEATURE_TARGET%\app\launcher_entry.py" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not copy launcher entry to:
+    echo   "%FEATURE_TARGET%\app"
+    pause
+    exit /b 1
+  )
+)
+if exist "%HELPER_SOURCE%\tools\windows\launch_ar_camera_ollama.bat" (
+  copy /Y "%HELPER_SOURCE%\tools\windows\launch_ar_camera_ollama.bat" "%FEATURE_TARGET%\launch_ar_camera_ollama.bat" >nul
+)
 if exist "%HELPER_SOURCE%\tools\windows\launch_ai_experiment_judgement.bat" (
   copy /Y "%HELPER_SOURCE%\tools\windows\launch_ai_experiment_judgement.bat" "%FEATURE_TARGET%\launch_ai_experiment_judgement.bat" >nul
 )
@@ -135,6 +148,9 @@ if exist "%HELPER_SOURCE%\tools\windows\patch_main_menu_button_05.py" (
 )
 if exist "%HELPER_SOURCE%\安装首页05按钮.bat" (
   copy /Y "%HELPER_SOURCE%\安装首页05按钮.bat" "%FEATURE_TARGET%\安装首页05按钮.bat" >nul
+)
+if exist "%HELPER_SOURCE%\修复首页05按钮.bat" (
+  copy /Y "%HELPER_SOURCE%\修复首页05按钮.bat" "%FEATURE_TARGET%\修复首页05按钮.bat" >nul
 )
 echo Copied AI experiment feature to: "%FEATURE_TARGET%"
 exit /b 0

@@ -55,19 +55,25 @@ launch_ai_experiment_judgement.bat
 
 运行下面脚本，会自动：
 
-1. 复制 `ai_experiment_judgement.py` 和 `home_menu_patch.py`
-2. 给 `app\main.py` 打补丁
-3. 在首页 `04 | 光学小实验` 下面插入 `05 | AI实验判断`
+1. 复制 `ai_experiment_judgement.py`、`home_menu_patch.py`、`launcher_entry.py`
+2. 更新 `launch_ar_camera_ollama.bat`，让桌面快捷方式启动时自动插入按钮 05
+3. 给 `app\main.py` 打补丁（备用）
 
 ```text
 安装首页05按钮.bat
+```
+
+如果已经安装过，只是桌面打开看不到按钮 05，直接运行：
+
+```text
+修复首页05按钮.bat
 ```
 
 也可以先更新 helper，再运行：
 
 ```text
 下载并安装新脚本.bat
-安装首页05按钮.bat
+修复首页05按钮.bat
 ```
 
 补丁完成后，重新启动主程序，首页就会出现第 5 个按钮。

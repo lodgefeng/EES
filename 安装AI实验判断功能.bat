@@ -14,6 +14,7 @@ for %%I in ("%FIXED_DIR%.") do set "FIXED_DIR=%%~fI"
 
 set "FEATURE_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\ai_experiment_judgement.py"
 set "PATCH_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\home_menu_patch.py"
+set "ENTRY_FILE=%SOURCE_DIR%feature\ai_experiment_judgement\app\launcher_entry.py"
 set "LAUNCHER_FILE=%SOURCE_DIR%tools\windows\launch_ai_experiment_judgement.bat"
 set "MENU_PATCHER=%SOURCE_DIR%tools\windows\patch_main_menu_button_05.py"
 
@@ -90,6 +91,15 @@ if errorlevel 1 (
   echo   "%TARGET%\app"
   pause
   exit /b 1
+)
+if exist "%ENTRY_FILE%" (
+  copy /Y "%ENTRY_FILE%" "%TARGET%\app\launcher_entry.py" >nul
+  if errorlevel 1 (
+    echo ERROR: Could not copy launcher entry to:
+    echo   "%TARGET%\app"
+    pause
+    exit /b 1
+  )
 )
 copy /Y "%LAUNCHER_FILE%" "%TARGET%\launch_ai_experiment_judgement.bat" >nul
 if errorlevel 1 (

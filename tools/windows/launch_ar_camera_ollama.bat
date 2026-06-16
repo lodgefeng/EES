@@ -83,6 +83,13 @@ if /I "%ENTRY%"=="src\main.py" set "MODULE=src.main"
 if /I "%ENTRY%"=="src\app.py" set "MODULE=src.app"
 
 if defined MODULE (
+  if exist "%APP_DIR%\app\home_menu_patch.py" if exist "%APP_DIR%\app\launcher_entry.py" (
+    set "MODULE=app.launcher_entry"
+    call :log "Using launcher entry with home-menu patch."
+  )
+)
+
+if defined MODULE (
   call :log "Starting entry module: %MODULE%"
   "%VENV_PY%" -m "%MODULE%" >> "%LOG_FILE%" 2>&1
 ) else (

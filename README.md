@@ -123,5 +123,7 @@ docs/AI_EXPERIMENT_JUDGEMENT.md
 To show button `05 | AI实验判断` on the home page:
 
 ```text
-安装首页05按钮.bat
+修复首页05按钮.bat
 ```
+
+Then restart the app from the desktop shortcut.
