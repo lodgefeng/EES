@@ -17,6 +17,24 @@ except ImportError:  # pragma: no cover - runtime dependency in app venv
     np = None
 
 
+def build_judgement_prompt(region_count: int, single_image: bool = False) -> str:
+    if single_image:
+        return (
+            "你是光学实验摆放判断助手。"
+            "这张图左右拼接：左边是实时画面（带编号圆圈标出疑似差异），右边是标准摆放参考图。"
+            f"程序检测到约 {region_count} 处疑似差异。"
+            "请对比左右两侧，说明主要差异、学生摆放哪里可能不正确，"
+            "并给出简短整改建议。使用中文，条理清晰。"
+        )
+    return (
+        "你是光学实验摆放判断助手。"
+        "第一张是实时画面（已用编号圆圈标出疑似差异），第二张是标准摆放参考图。"
+        f"程序检测到约 {region_count} 处疑似差异。"
+        "请对比两张图，说明主要差异在哪里、学生摆放哪里可能不正确，"
+        "并给出简短整改建议。使用中文，条理清晰。"
+    )
+
+
 def judge_images_with_ollama(
     *,
     model: str,

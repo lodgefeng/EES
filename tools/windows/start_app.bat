@@ -71,7 +71,10 @@ if /I "%ENTRY%"=="src\main.py" set "MODULE=src.main"
 if /I "%ENTRY%"=="src\app.py" set "MODULE=src.app"
 
 if /I "%MODULE%"=="app.launcher_entry" (
-  if not exist "%PATCH_APP%\launcher_entry.py" if not exist "%APP_DIR%\app\launcher_entry.py" (
+  if exist "%PATCH_RUNTIME%\run_patched_app.py" (
+    call :log "Using LOCALAPPDATA run_patched_app.py"
+    set "RUN_PATCHED=1"
+  ) else if not exist "%PATCH_APP%\launcher_entry.py" if not exist "%APP_DIR%\app\launcher_entry.py" (
     set "MODULE=app.main"
     call :log "launcher_entry missing; starting app.main without patch hook."
   ) else (
@@ -79,10 +82,12 @@ if /I "%MODULE%"=="app.launcher_entry" (
   )
 )
 
-set "PYTHONPATH=%PATCH_RUNTIME%;%APP_DIR%"
-call :log "PYTHONPATH=%PYTHONPATH%"
-
-if defined MODULE (
+if defined RUN_PATCHED (
+  set "CREOLIGHT_APP_DIR=%APP_DIR%"
+  set "CREOLIGHT_PATCH_RUNTIME=%PATCH_RUNTIME%"
+  call :log "Starting patched runner: %PATCH_RUNTIME%\run_patched_app.py"
+  "%VENV_PY%" "%PATCH_RUNTIME%\run_patched_app.py" >> "%LOG_FILE%" 2>&1
+) else if defined MODULE (
   call :log "Starting entry module: %MODULE%"
   "%VENV_PY%" -m "%MODULE%" >> "%LOG_FILE%" 2>&1
 ) else (
@@ -112,6 +117,13 @@ call :log "Syncing patch modules from GitHub to LOCALAPPDATA..."
 for %%F in (patch_sync.py launcher_entry.py home_menu_patch.py ar_imaging_adjustment.py ai_experiment_llm_judgement.py experiment_shared.py ollama_vision_client.py jbd4020_cast_support.py ai_experiment_judgement.py) do (
   call :download_patch_file %%F
 )
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='SilentlyContinue';" ^
+  "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
+  "$u='%PATCH_RAW%/run_patched_app.py';" ^
+  "$o='%PATCH_RUNTIME%\run_patched_app.py';" ^
+  "try { Invoke-WebRequest -Uri $u -OutFile $o -UseBasicParsing; exit 0 } catch { exit 1 }" >nul 2>&1
+if not errorlevel 1 call :log "  patch synced: run_patched_app.py"
 exit /b 0
 
 :download_patch_file

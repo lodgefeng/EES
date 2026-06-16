@@ -17,6 +17,7 @@ GITHUB_RAW_BASE = (
 PATCH_FILES = (
     "home_menu_patch.py",
     "patch_sync.py",
+    "run_patched_app.py",
     "ar_imaging_adjustment.py",
     "ai_experiment_llm_judgement.py",
     "experiment_shared.py",

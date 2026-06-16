@@ -68,12 +68,13 @@ def activate_menu_patch_runtime() -> None:
     def patched_init(app_self, *args, **kwargs):
         original_init(app_self, *args, **kwargs)
         _install_show_event_filter()
-        for delay_ms in (0, 100, 250, 500, 1000, 2000, 3500, 5000, 8000, 12000, 18000):
+        for delay_ms in (0, 100, 250, 500, 1000, 2000, 3500, 5000, 8000, 12000, 18000, 25000):
             QTimer.singleShot(delay_ms, install_on_top_level_window)
+            QTimer.singleShot(delay_ms, _force_overlay_on_all_windows)
 
     QApplication.__init__ = patched_init  # type: ignore[method-assign]
     _RUNTIME_HOOKED = True
-    _log("runtime hook activated")
+    _log(f"runtime hook activated from {__file__}")
 
 
 def install_home_menu_buttons(main_window: QWidget) -> bool:
@@ -288,6 +289,18 @@ def schedule_ai_experiment_menu_button(main_window: QWidget) -> None:
         QTimer.singleShot(250, _try_install)
 
     QTimer.singleShot(0, _try_install)
+
+
+def _force_overlay_on_all_windows() -> None:
+    app = QApplication.instance()
+    if app is None:
+        return
+    for widget in app.topLevelWidgets():
+        if not widget.isVisible():
+            continue
+        if _buttons_ready(widget):
+            continue
+        _install_overlay_buttons(widget)
 
 
 def install_on_top_level_window() -> bool:
@@ -932,8 +945,13 @@ def _install_overlay_buttons(main_window: QWidget) -> bool:
         panel_x = max(int(main_window.width() * 0.30), 0)
         panel_y = max(int(main_window.height() * 0.58), 0)
 
-    panel_height = 170
-    panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
+    panel_height = 180
+    if main_window.width() > 0 and main_window.height() > 0:
+        panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
+    else:
+        panel.setGeometry(320, 420, 360, panel_height)
+
+    panel.setStyleSheet("background: transparent;")
     panel.show()
     panel.raise_()
 
