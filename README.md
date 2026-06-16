@@ -1,1 +1,166 @@
 # E-elements
+
+## Windows AR_Camera_Ollama install helpers
+
+Windows helper scripts for the AR_Camera_Ollama `python_venv` launch issue are
+available under:
+
+```text
+tools/windows
+```
+
+If the Windows project folder does not have these new scripts yet, run this from
+the downloaded helper bundle:
+
+```text
+复制新脚本到项目.bat
+```
+
+If you only copied that one file and it reports missing `tools\windows`, use the
+bootstrap downloader instead:
+
+```text
+下载并安装新脚本.bat
+```
+
+It copies the root entrypoints and `tools\windows` helpers into:
+
+```text
+C:\Users\lodge\AR_Camera_Ollama
+```
+
+To integrate the repaired copy back into the current project checkout:
+
+```text
+tools/windows/sync_fixed_build_to_project.bat
+```
+
+The sync script defaults to:
+
+```text
+fixed source: D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+project dir:  C:\Users\lodge\AR_Camera_Ollama
+```
+
+To build a copyable installer package on the D drive:
+
+```text
+制作安装包_无需Python检测.bat
+```
+
+This is the recommended entrypoint if an older local package script fails with
+`Python 3.10+ required` or detects Anaconda.
+
+You can also use:
+
+```text
+制作安装包.bat
+```
+
+or:
+
+```text
+build_ar_camera_ollama_installer.bat
+```
+
+This root script calls the implementation under:
+
+```text
+tools/windows/build_ar_camera_ollama_installer.bat
+```
+
+The package output defaults to:
+
+```text
+D:\AR_Camera_Ollama_installer
+D:\AR_Camera_Ollama_installer.zip
+```
+
+The project can stay on `C:\Users\lodge\AR_Camera_Ollama`. The D drive paths
+are only the fixed source folder and installer output folder:
+
+```text
+source:  D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+output:  D:\AR_Camera_Ollama_installer
+project: C:\Users\lodge\AR_Camera_Ollama
+```
+
+For new computers, use:
+
+```text
+tools/windows/install_fixed_ar_camera_ollama.bat
+```
+
+The installer defaults to the fixed source folder:
+
+```text
+D:\AR_Camera_Ollama_fix\AR_Camera_Ollama_fix
+```
+
+## AI实验判断
+
+The first AI experiment judgement page is available as a drop-in PySide6 module:
+
+```text
+feature/ai_experiment_judgement/app/ai_experiment_judgement.py
+```
+
+Copy it into the local project and fixed source folder with:
+
+```text
+安装AI实验判断功能.bat
+```
+
+`下载并安装新脚本.bat` and `复制新脚本到项目.bat` also copy the module into the
+local project and D-drive fixed source when the feature files are present.
+
+Integration notes are in:
+
+```text
+docs/AI_EXPERIMENT_JUDGEMENT.md
+```
+
+To show button `05 | AI实验判断` on the home page:
+
+```text
+修复首页05按钮.bat
+```
+
+If the desktop shortcut starts:
+
+```text
+C:\Program Files\Creolight\AR_Camera_Ollama\start_app.bat
+```
+
+run:
+
+```text
+fix_program_files_button_05.bat
+```
+
+Double-click it. It downloads the latest patch files from GitHub and writes them into Program Files automatically (admin permission required). Use this ASCII-named file on Chinese Windows to avoid batch encoding errors.
+
+Chinese-named wrapper (same behavior):
+
+```text
+直接从GitHub修复ProgramFiles首页05按钮.bat
+```
+
+If you already have the helper package locally, you can also run:
+
+```text
+修复Creolight安装首页05按钮.bat
+```
+
+After restart, check:
+
+```text
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\launcher.log
+%LOCALAPPDATA%\Creolight\AR_Camera_Ollama\home_menu_patch.log
+```
+
+If the app fails with `IndentationError` in `app\main.py`, run:
+
+```text
+repair_main_py_button05.bat
+```
