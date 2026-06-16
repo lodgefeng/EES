@@ -18,8 +18,11 @@ from PySide6.QtWidgets import (
     QGridLayout,
     QLabel,
     QLayout,
+    QListWidget,
+    QMainWindow,
     QPushButton,
     QSizePolicy,
+    QVBoxLayout,
     QWidget,
 )
 
@@ -103,6 +106,13 @@ def _install_home_menu_buttons(main_window: QWidget) -> bool:
     if geometry_stack is not None:
         return _install_geometry_buttons(main_window, geometry_stack)
 
+    visual_stack = _find_visual_button_stack(main_window)
+    if visual_stack is not None:
+        return _install_geometry_buttons(main_window, visual_stack)
+
+    if _install_overlay_buttons(main_window):
+        return True
+
     for widget in _iter_patch_widgets(main_window):
         _destroy_widget(widget)
     _dump_menu_widgets_once(main_window)
@@ -155,7 +165,8 @@ def _install_menu_buttons(
 
     if geometry_mode is not None:
         parent, anchor_container, gap = geometry_mode
-        next_geometry_y = anchor_container.y() + anchor_container.height() + gap
+        anchor_pos = anchor_container.mapTo(parent, QPoint(0, 0))
+        next_geometry_y = anchor_pos.y() + anchor_container.height() + gap
 
     for marker, text, opener in menu_buttons:
         existing = _find_menu_button(main_window, text)
@@ -210,7 +221,8 @@ def _install_menu_buttons(
                 style_anchor,
             )
             if button is not None:
-                next_geometry_y = button.y() + button.height() + gap
+                button_pos = button.mapTo(parent, QPoint(0, 0))
+                next_geometry_y = button_pos.y() + button.height() + gap
                 changed = True
 
     ready = _buttons_ready_and_aligned(main_window)
@@ -222,31 +234,27 @@ def _install_menu_buttons(
 
 
 def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
+    if not _buttons_ready(main_window):
+        return False
+
+    panel = getattr(main_window, "_creolight_extra_menu_panel", None)
     for text in (BUTTON_05_TEXT, BUTTON_06_TEXT):
         button = _find_menu_button(main_window, text)
         if button is None or not button.isVisible():
             return False
+        if panel is not None and button.parentWidget() == panel:
+            continue
 
-    layout_stack = _find_menu_button_stack(main_window)
-    if layout_stack is not None:
-        _, layout, stack_buttons, _ = layout_stack
-        stack_numbers = {_subtree_menu_number(button) for button in stack_buttons}
-        stack_numbers.discard(None)
-        if not {1, 4}.issubset(stack_numbers):
-            return False
-        for text in (BUTTON_05_TEXT, BUTTON_06_TEXT):
-            button = _find_menu_button(main_window, text)
-            if button is None or layout.indexOf(button) < 0:
-                return False
-        return True
+        layout_stack = _find_menu_button_stack(main_window)
+        if layout_stack is not None:
+            _, layout, _, _ = layout_stack
+            if layout.indexOf(button) >= 0:
+                continue
 
-    geometry_stack = _find_geometry_stack(main_window)
-    if geometry_stack is None:
+        geometry_stack = _find_geometry_stack(main_window) or _find_visual_button_stack(main_window)
+        if geometry_stack is not None and button.parentWidget() == geometry_stack.parent:
+            continue
         return False
-    for text in (BUTTON_05_TEXT, BUTTON_06_TEXT):
-        button = _find_menu_button(main_window, text)
-        if button is None or not _button_in_geometry_stack(button, geometry_stack.parent):
-            return False
     return True
 
 
@@ -288,7 +296,19 @@ def install_on_top_level_window() -> bool:
         return False
 
     installed = False
+    targets: List[QWidget] = []
+    seen = set()
     for widget in app.topLevelWidgets():
+        if id(widget) not in seen:
+            seen.add(id(widget))
+            targets.append(widget)
+        if isinstance(widget, QMainWindow):
+            central = widget.centralWidget()
+            if central is not None and id(central) not in seen:
+                seen.add(id(central))
+                targets.append(central)
+
+    for widget in targets:
         if install_home_menu_buttons(widget):
             installed = True
     return installed
@@ -452,7 +472,8 @@ def _insert_geometry_button(
         width = max(style_anchor.width(), 320)
         height = max(style_anchor.height(), 72)
 
-    button.setGeometry(anchor_container.x(), y_pos, width, height)
+    anchor_pos = anchor_container.mapTo(parent, QPoint(0, 0))
+    button.setGeometry(anchor_pos.x(), y_pos, width, height)
     button.show()
     button.raise_()
     setattr(main_window, marker, True)
@@ -527,9 +548,15 @@ def _extract_menu_number(text: str) -> Optional[int]:
 
 def _combined_widget_text(widget: QWidget) -> str:
     parts: List[str] = []
-    own_text = _widget_label_text(widget).strip()
-    if own_text:
-        parts.append(own_text)
+    for attr in ("text", "toolTip", "statusTip", "whatsThis", "objectName"):
+        if not hasattr(widget, attr):
+            continue
+        try:
+            value = getattr(widget, attr)()
+            if isinstance(value, str) and value.strip():
+                parts.append(value.strip())
+        except Exception:  # noqa: BLE001
+            continue
     for child in widget.findChildren(QLabel):
         child_text = child.text().strip()
         if child_text:
@@ -538,6 +565,14 @@ def _combined_widget_text(widget: QWidget) -> str:
         child_text = child.text().strip()
         if child_text:
             parts.append(child_text)
+    for list_widget in widget.findChildren(QListWidget):
+        for index in range(list_widget.count()):
+            item = list_widget.item(index)
+            if item is None:
+                continue
+            item_text = item.text().strip()
+            if item_text:
+                parts.append(item_text)
     return " ".join(parts)
 
 
@@ -725,7 +760,9 @@ def _is_descendant_of(widget: QWidget, ancestor: QWidget) -> bool:
 
 def _find_geometry_stack(root: QWidget) -> Optional[GeometryStack]:
     containers = _scan_menu_containers(root)
-    if len(containers) < 2 or containers[-1][0] != 4:
+    if len(containers) < 2:
+        return None
+    if containers[-1][0] != 4 and len(containers) < 4:
         return None
 
     container_widgets = [widget for _, widget in containers]
@@ -738,13 +775,209 @@ def _find_geometry_stack(root: QWidget) -> Optional[GeometryStack]:
             return None
         parent = common_parent
 
-    gap = 12
-    if len(containers) >= 2:
-        prev_widget = containers[-2][1]
-        last_widget = containers[-1][1]
-        gap = max(12, last_widget.y() - (prev_widget.y() + prev_widget.height()))
-
+    gap = _estimate_vertical_gap(container_widgets)
     return GeometryStack(parent=parent, containers=containers, gap=gap)
+
+
+def _estimate_vertical_gap(widgets: List[QWidget]) -> int:
+    if len(widgets) < 2:
+        return 12
+    ordered = sorted(widgets, key=lambda item: item.mapToGlobal(QPoint(0, 0)).y())
+    gaps = []
+    for index in range(1, len(ordered)):
+        prev = ordered[index - 1]
+        current = ordered[index]
+        gaps.append(current.mapToGlobal(QPoint(0, 0)).y() - (prev.mapToGlobal(QPoint(0, 0)).y() + prev.height()))
+    positive = [gap for gap in gaps if gap > 0]
+    if not positive:
+        return 12
+    return max(12, int(sum(positive) / len(positive)))
+
+
+def _is_button_like(widget: QWidget) -> bool:
+    if not widget.isVisible():
+        return False
+    if widget.isWindow():
+        return False
+    width = widget.width()
+    height = widget.height()
+    if width < 160 or height < 30:
+        return False
+    if height > 160:
+        return False
+    if width / max(height, 1) < 2.0:
+        return False
+    object_name = widget.objectName().lower()
+    if object_name in {"creolight_extra_menu_panel", "creolight_menu_patch_panel"}:
+        return False
+    return True
+
+
+def _prune_contained_widgets(widgets: List[QWidget]) -> List[QWidget]:
+    ordered = sorted(widgets, key=lambda item: item.width() * item.height(), reverse=True)
+    kept: List[QWidget] = []
+    for widget in ordered:
+        if any(_is_descendant_of(widget, other) for other in kept):
+            continue
+        kept = [other for other in kept if not _is_descendant_of(other, widget)]
+        kept.append(widget)
+    return kept
+
+
+def _button_like_widgets(root: QWidget) -> List[QWidget]:
+    widgets = [widget for widget in root.findChildren(QWidget) if _is_button_like(widget)]
+    return _prune_contained_widgets(widgets)
+
+
+def _group_button_like_by_column(widgets: List[QWidget]) -> List[List[QWidget]]:
+    groups: List[List[QWidget]] = []
+    used = set()
+    for widget in widgets:
+        if id(widget) in used:
+            continue
+        center_x = widget.mapToGlobal(QPoint(widget.width() // 2, 0)).x()
+        group = [widget]
+        used.add(id(widget))
+        for other in widgets:
+            if id(other) in used:
+                continue
+            other_x = other.mapToGlobal(QPoint(other.width() // 2, 0)).x()
+            if abs(center_x - other_x) <= 50 and abs(widget.width() - other.width()) <= 80:
+                group.append(other)
+                used.add(id(other))
+        groups.append(group)
+    return groups
+
+
+def _best_vertical_sequence(widgets: List[QWidget], min_count: int = 4) -> List[QWidget]:
+    if len(widgets) < min_count:
+        return []
+    ordered = sorted(widgets, key=lambda item: item.mapToGlobal(QPoint(0, 0)).y())
+    if len(ordered) == min_count:
+        return ordered
+    best: List[QWidget] = []
+    for start in range(0, len(ordered) - min_count + 1):
+        candidate = ordered[start : start + min_count]
+        widths = [item.width() for item in candidate]
+        if max(widths) - min(widths) > 100:
+            continue
+        gaps = []
+        for index in range(1, len(candidate)):
+            prev = candidate[index - 1]
+            current = candidate[index]
+            gaps.append(
+                current.mapToGlobal(QPoint(0, 0)).y()
+                - (prev.mapToGlobal(QPoint(0, 0)).y() + prev.height())
+            )
+        if any(gap <= 0 for gap in gaps):
+            continue
+        if len(candidate) > len(best):
+            best = candidate
+    return best
+
+
+def _find_visual_button_stack(root: QWidget) -> Optional[GeometryStack]:
+    candidates = _button_like_widgets(root)
+    if len(candidates) < 4:
+        _log(f"visual scan found only {len(candidates)} button-like widgets")
+        return None
+
+    groups = _group_button_like_by_column(candidates)
+    best_group = max(groups, key=len) if groups else []
+    sequence = _best_vertical_sequence(best_group, min_count=4)
+    if len(sequence) < 4:
+        sequence = _best_vertical_sequence(candidates, min_count=4)
+    if len(sequence) < 4:
+        _log("visual scan could not build a 4-button vertical sequence")
+        return None
+
+    parent = _find_common_parent(sequence) or root
+    containers = [(index + 1, widget) for index, widget in enumerate(sequence)]
+    gap = _estimate_vertical_gap(sequence)
+    _log(
+        "visual button stack found: parent="
+        f"{parent.__class__.__name__}, count={len(sequence)}, gap={gap}"
+    )
+    return GeometryStack(parent=parent, containers=containers, gap=gap)
+
+
+def _install_overlay_buttons(main_window: QWidget) -> bool:
+    if _buttons_ready(main_window):
+        return True
+
+    panel_attr = "_creolight_extra_menu_panel"
+    panel: Optional[QWidget] = getattr(main_window, panel_attr, None)
+    if panel is None:
+        panel = QWidget(main_window)
+        panel.setObjectName("creolight_extra_menu_panel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(12)
+        setattr(main_window, panel_attr, panel)
+    else:
+        layout = panel.layout()
+        if layout is None:
+            layout = QVBoxLayout(panel)
+            layout.setContentsMargins(0, 0, 0, 0)
+            layout.setSpacing(12)
+
+    anchor = _find_visual_anchor_widget(main_window)
+    if anchor is not None:
+        top_left = anchor.mapTo(main_window, QPoint(0, 0))
+        panel_width = max(anchor.width(), 320)
+        panel_x = top_left.x()
+        panel_y = top_left.y() + anchor.height() + 12
+    else:
+        panel_width = max(int(main_window.width() * 0.42), 320)
+        panel_x = max(int(main_window.width() * 0.30), 0)
+        panel_y = max(int(main_window.height() * 0.58), 0)
+
+    panel_height = 170
+    panel.setGeometry(panel_x, panel_y, panel_width, panel_height)
+    panel.show()
+    panel.raise_()
+
+    menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
+        (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
+        (PATCH_MARKER_06, BUTTON_06_TEXT, _open_ai_experiment_llm_judgement),
+    )
+    style_anchor = anchor or main_window
+    changed = False
+    for marker, text, opener in menu_buttons:
+        existing = _find_menu_button(main_window, text)
+        if existing is not None and existing.parentWidget() == panel:
+            _rewire_button(existing, opener, main_window)
+            existing.show()
+            setattr(main_window, marker, True)
+            changed = True
+            continue
+        if existing is not None:
+            _destroy_widget(existing)
+
+        button = QPushButton(text, panel)
+        button.setObjectName(marker.lower())
+        _apply_button_style(button, _style_source_widget(style_anchor))
+        _rewire_button(button, opener, main_window)
+        if isinstance(layout, QVBoxLayout):
+            layout.addWidget(button)
+        button.show()
+        setattr(main_window, marker, True)
+        changed = True
+
+    if changed or _buttons_ready(main_window):
+        _log("overlay menu buttons 05/06 installed")
+        return True
+    return False
+
+
+def _find_visual_anchor_widget(root: QWidget) -> Optional[QWidget]:
+    visual = _find_visual_button_stack(root)
+    if visual is not None:
+        return visual.containers[-1][1]
+    containers = _scan_menu_containers(root)
+    if containers:
+        return containers[-1][1]
+    return _find_anchor_button(root)
 
 
 def _find_anchor_button(root: QWidget) -> Optional[QWidget]:
@@ -928,6 +1161,7 @@ def _dump_menu_widgets_once(root: QWidget) -> None:
         return
     _DUMPED_WIDGETS = True
     _log("dumping menu-related widgets for diagnosis")
+    text_hits = 0
     for widget in root.findChildren(QWidget):
         combined = _combined_widget_text(widget)
         if not combined:
@@ -937,6 +1171,7 @@ def _dump_menu_widgets_once(root: QWidget) -> None:
             keyword in combined for keywords in _MENU_KEYWORDS.values() for keyword in keywords
         ):
             continue
+        text_hits += 1
         global_pos: Union[QPoint, str]
         try:
             global_pos = widget.mapToGlobal(QPoint(0, 0))
@@ -950,6 +1185,21 @@ def _dump_menu_widgets_once(root: QWidget) -> None:
             f" text={combined!r}"
             f" geom=({widget.x()},{widget.y()},{widget.width()},{widget.height()})"
             f" global={global_pos}"
+        )
+    button_like = _button_like_widgets(root)
+    _log(f"text menu hits={text_hits}, button-like widgets={len(button_like)}")
+    for widget in button_like[:12]:
+        try:
+            global_pos = widget.mapToGlobal(QPoint(0, 0))
+        except Exception:  # noqa: BLE001
+            global_pos = "?"
+        _log(
+            "button-like "
+            f"{widget.__class__.__name__}"
+            f" name={widget.objectName()!r}"
+            f" geom=({widget.x()},{widget.y()},{widget.width()},{widget.height()})"
+            f" global={global_pos}"
+            f" text={_combined_widget_text(widget)!r}"
         )
 
 
