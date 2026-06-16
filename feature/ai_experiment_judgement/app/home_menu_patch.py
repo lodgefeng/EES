@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Callable, List, Optional, Tuple
+from collections import defaultdict
+from typing import Callable, Dict, List, Optional, Tuple
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import (
@@ -61,21 +62,26 @@ def install_home_menu_buttons(main_window: QWidget) -> bool:
     _clear_stale_markers(main_window)
 
     legacy = _find_button_by_text(main_window, _LEGACY_BUTTON_05_TEXT)
-    if legacy is not None and isinstance(legacy, QPushButton):
-        legacy.setText(BUTTON_05_TEXT)
+    if legacy is not None:
+        if isinstance(legacy, QPushButton):
+            legacy.setText(BUTTON_05_TEXT)
+        else:
+            _destroy_widget(legacy)
 
     if _buttons_ready_and_aligned(main_window):
         return True
 
     stack = _find_menu_button_stack(main_window)
     if stack is None:
-        _log("menu stack not found, trying anchor fallback")
-        return _install_with_anchor_fallback(main_window)
+        for widget in _iter_patch_widgets(main_window):
+            _destroy_widget(widget)
+        _log("menu stack not found; will retry on next timer")
+        return False
 
     stack_parent, layout, stack_buttons, insert_after = stack
     style_anchor = stack_buttons[-1]
 
-    _remove_misplaced_patch_buttons(main_window, stack_parent)
+    _remove_misplaced_patch_widgets(main_window, layout)
 
     menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
         (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
@@ -85,9 +91,9 @@ def install_home_menu_buttons(main_window: QWidget) -> bool:
     changed = False
     next_index = insert_after + 1
     for marker, text, opener in menu_buttons:
-        existing = _find_button_by_text(main_window, text)
-        if existing is not None and isinstance(existing, QPushButton):
-            if existing.parentWidget() == stack_parent:
+        existing = _find_menu_button(main_window, text)
+        if existing is not None:
+            if layout.indexOf(existing) >= 0:
                 next_index = _ensure_button_in_layout(
                     existing, stack_parent, layout, style_anchor, next_index
                 )
@@ -123,45 +129,19 @@ def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
     stack = _find_menu_button_stack(main_window)
     if stack is None:
         return False
-    stack_parent, layout, _, _ = stack
+    _, layout, stack_buttons, _ = stack
+    stack_numbers = {_button_number(button) for button in stack_buttons}
+    if not {1, 4}.issubset(stack_numbers):
+        return False
     for text in (BUTTON_05_TEXT, BUTTON_06_TEXT):
-        button = _find_button_by_text(main_window, text)
-        if button is None or not isinstance(button, QPushButton):
-            return False
-        if button.parentWidget() != stack_parent:
+        button = _find_menu_button(main_window, text)
+        if button is None:
             return False
         if not button.isVisible():
             return False
         if layout.indexOf(button) < 0:
             return False
     return True
-
-
-def _install_with_anchor_fallback(main_window: QWidget) -> bool:
-    anchor = _find_anchor_button(main_window)
-    if anchor is None:
-        return False
-
-    menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
-        (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
-        (PATCH_MARKER_06, BUTTON_06_TEXT, _open_ai_experiment_llm_judgement),
-    )
-
-    changed = False
-    current_anchor = anchor
-    for marker, text, opener in menu_buttons:
-        existing = _find_button_by_text(main_window, text)
-        if existing is not None and isinstance(existing, QPushButton):
-            _rewire_button(existing, opener, main_window)
-            existing.show()
-            setattr(main_window, marker, True)
-            current_anchor = existing
-            changed = True
-            continue
-        if _insert_after_anchor(main_window, current_anchor, marker, text, opener):
-            changed = True
-            current_anchor = _find_button_by_text(main_window, text) or current_anchor
-    return changed or _buttons_ready(main_window)
 
 
 def _ensure_button_in_layout(
@@ -172,40 +152,15 @@ def _ensure_button_in_layout(
     insert_index: int,
 ) -> int:
     _match_button_geometry(style_anchor, button)
+    owner = _layout_owner(layout) or stack_parent
+    if button.parentWidget() is not owner:
+        button.setParent(owner)
     current_index = layout.indexOf(button)
     if current_index >= 0:
         return max(current_index, insert_index)
-    button.setParent(stack_parent)
     if _insert_button_at(layout, insert_index, button):
         return insert_index
     return insert_index
-
-
-def _insert_after_anchor(
-    main_window: QWidget,
-    anchor: QWidget,
-    marker: str,
-    text: str,
-    opener: Callable[[QWidget, QWidget], None],
-) -> bool:
-    parent = anchor.parentWidget() or main_window
-    button = QPushButton(text, parent)
-    button.setObjectName(marker.lower())
-    _match_button_geometry(anchor, button)
-    button.setCursor(Qt.PointingHandCursor)
-    button.setStyleSheet(_button_style(anchor))
-    _rewire_button(button, opener, main_window)
-
-    layout, index = _find_layout_for_widget(anchor)
-    if layout is not None and index >= 0 and _insert_button_at(layout, index + 1, button):
-        button.show()
-        setattr(main_window, marker, True)
-        _log(f"inserted {text} via anchor layout")
-        return True
-
-    button.deleteLater()
-    _log(f"anchor fallback failed for {text}")
-    return False
 
 
 def schedule_ai_experiment_menu_button(main_window: QWidget) -> None:
@@ -254,8 +209,9 @@ install_ai_experiment_menu_button = install_home_menu_buttons
 
 
 def _buttons_ready(main_window: QWidget) -> bool:
-    return _button_text_exists(main_window, BUTTON_05_TEXT) and _button_text_exists(
-        main_window, BUTTON_06_TEXT
+    return (
+        _find_menu_button(main_window, BUTTON_05_TEXT) is not None
+        and _find_menu_button(main_window, BUTTON_06_TEXT) is not None
     )
 
 
@@ -268,9 +224,9 @@ def _clear_stale_markers(main_window: QWidget) -> None:
             setattr(main_window, marker, False)
 
 
-def _remove_misplaced_patch_buttons(root: QWidget, stack_parent: QWidget) -> None:
+def _remove_misplaced_patch_widgets(root: QWidget, target_layout: QLayout) -> None:
     for widget in _iter_patch_widgets(root):
-        if widget.parentWidget() == stack_parent:
+        if target_layout.indexOf(widget) >= 0:
             continue
         _destroy_widget(widget)
 
@@ -328,7 +284,8 @@ def _insert_into_stack(
     text: str,
     opener: Callable[[QWidget, QWidget], None],
 ) -> bool:
-    button = QPushButton(text, stack_parent)
+    owner = _layout_owner(layout) or stack_parent
+    button = QPushButton(text, owner)
     button.setObjectName(marker.lower())
     _match_button_geometry(style_anchor, button)
     button.setCursor(Qt.PointingHandCursor)
@@ -378,6 +335,14 @@ def _insert_button_at(layout: QLayout, index: int, button: QPushButton) -> bool:
     return False
 
 
+def _layout_owner(layout: QLayout) -> Optional[QWidget]:
+    owner = layout.parentWidget()
+    if owner is not None:
+        return owner
+    parent = layout.parent()
+    return parent if isinstance(parent, QWidget) else None
+
+
 def _last_stack_index(layout: QLayout, stack_buttons: List[QWidget]) -> int:
     last_index = -1
     for button in stack_buttons:
@@ -387,48 +352,93 @@ def _last_stack_index(layout: QLayout, stack_buttons: List[QWidget]) -> int:
     return last_index
 
 
+def _group_menu_buttons_by_layout(
+    root: QWidget,
+) -> Dict[QLayout, List[QWidget]]:
+    grouped: Dict[QLayout, List[QWidget]] = defaultdict(list)
+    for widget in _iter_menu_label_widgets(root):
+        number = _button_number(widget)
+        if number is None or number > 4:
+            continue
+        layout, index = _find_layout_for_widget(widget)
+        if layout is None or index < 0:
+            continue
+        grouped[layout].append(widget)
+    return grouped
+
+
 def _find_menu_button_stack(
     root: QWidget,
 ) -> Optional[Tuple[QWidget, QLayout, List[QWidget], int]]:
-    anchor = _find_anchor_button(root)
-    if anchor is None:
+    grouped = _group_menu_buttons_by_layout(root)
+    if not grouped:
+        _log("no numbered home-menu layouts found")
         return None
 
-    stack_parent = anchor.parentWidget()
+    best_layout: Optional[QLayout] = None
+    best_buttons: List[QWidget] = []
+    for layout, buttons in grouped.items():
+        unique = _unique_buttons_sorted(buttons)
+        if len(unique) > len(best_buttons):
+            best_layout = layout
+            best_buttons = unique
+
+    if best_layout is None or len(best_buttons) < 2:
+        _log("home-menu layout has too few numbered buttons")
+        return None
+
+    stack_numbers = {_button_number(button) for button in best_buttons}
+    if 1 not in stack_numbers or 4 not in stack_numbers:
+        anchor = _find_anchor_button(root)
+        if anchor is None:
+            _log("home-menu layout missing buttons 01 and 04")
+            return None
+        layout, anchor_index = _find_layout_for_widget(anchor)
+        if layout is None or anchor_index < 0:
+            _log("anchor button 04 is not inside a layout")
+            return None
+        best_layout = layout
+        best_buttons = _unique_buttons_sorted(
+            [
+                widget
+                for widget in _iter_menu_label_widgets(root)
+                if _button_number(widget) is not None
+                and (_button_number(widget) or 99) <= 4
+                and layout.indexOf(widget) >= 0
+            ]
+        )
+        if len(best_buttons) < 2:
+            _log("anchor fallback layout still has too few buttons")
+            return None
+
+    stack_parent = _layout_owner(best_layout)
     if stack_parent is None:
+        stack_parent = best_buttons[-1].parentWidget()
+    if stack_parent is None:
+        _log("home-menu stack parent not found")
         return None
 
-    layout = stack_parent.layout()
-    if layout is None:
-        return None
-
-    stack_buttons: List[QWidget] = []
-    for widget in _iter_clickable_widgets(stack_parent):
-        number = _button_number(widget)
-        if number is not None and number <= 4:
-            stack_buttons.append(widget)
-
-    stack_buttons = _unique_buttons_sorted(stack_buttons)
-    if len(stack_buttons) < 2:
-        return None
-
-    last_index = _last_stack_index(layout, stack_buttons)
+    last_index = _last_stack_index(best_layout, best_buttons)
     if last_index < 0:
-        last_index = layout.indexOf(anchor)
-    if last_index < 0:
+        _log("home-menu buttons are not direct layout children")
         return None
 
-    return stack_parent, layout, stack_buttons, last_index
+    numbers = sorted(_button_number(button) or 0 for button in best_buttons)
+    _log(
+        "home-menu stack found: parent="
+        f"{stack_parent.__class__.__name__}, buttons={numbers}, insert_after={last_index}"
+    )
+    return stack_parent, best_layout, best_buttons, last_index
 
 
 def _find_anchor_button(root: QWidget) -> Optional[QWidget]:
-    for widget in _iter_clickable_widgets(root):
+    for widget in _iter_menu_label_widgets(root):
         text = _widget_label_text(widget)
         compact = text.replace(" ", "")
         if "光学小实验" in text or compact.startswith("04|"):
             return widget
     numbered: List[QWidget] = []
-    for widget in _iter_clickable_widgets(root):
+    for widget in _iter_menu_label_widgets(root):
         number = _button_number(widget)
         if number is not None and number <= 4:
             numbered.append(widget)
@@ -478,34 +488,52 @@ def _rewire_button(
 
 
 def _button_text_exists(root: QWidget, text: str) -> bool:
-    return _find_button_by_text(root, text) is not None
+    return _find_menu_button(root, text) is not None
+
+
+def _find_menu_button(root: QWidget, text: str) -> Optional[QPushButton]:
+    compact_target = text.replace(" ", "")
+    for button in root.findChildren(QPushButton):
+        if _widget_label_text(button).replace(" ", "") == compact_target:
+            return button
+    return None
 
 
 def _find_button_by_text(root: QWidget, text: str) -> Optional[QWidget]:
+    button = _find_menu_button(root, text)
+    if button is not None:
+        return button
     compact_target = text.replace(" ", "")
-    for widget in _iter_clickable_widgets(root):
+    for widget in _iter_menu_label_widgets(root):
         if _widget_label_text(widget).replace(" ", "") == compact_target:
             return widget
     return None
 
 
-def _iter_clickable_widgets(root: QWidget) -> List[QWidget]:
+def _iter_menu_label_widgets(root: QWidget) -> List[QWidget]:
     widgets: List[QWidget] = []
     seen = set()
     for button in root.findChildren(QAbstractButton):
+        text = _widget_label_text(button)
+        if not _NUMBERED_BUTTON_RE.match(text):
+            continue
         obj_id = id(button)
         if obj_id not in seen:
             seen.add(obj_id)
             widgets.append(button)
     for label in root.findChildren(QLabel):
-        if not label.text().strip():
+        text = label.text().strip()
+        if not text or not _NUMBERED_BUTTON_RE.match(text):
             continue
-        if _NUMBERED_BUTTON_RE.match(label.text()) or "实验" in label.text():
-            obj_id = id(label)
-            if obj_id not in seen:
-                seen.add(obj_id)
-                widgets.append(label)
+        obj_id = id(label)
+        if obj_id not in seen:
+            seen.add(obj_id)
+            widgets.append(label)
     return widgets
+
+
+def _iter_clickable_widgets(root: QWidget) -> List[QWidget]:
+    return _iter_menu_label_widgets(root)
 
 
 def _widget_label_text(widget: QWidget) -> str:
