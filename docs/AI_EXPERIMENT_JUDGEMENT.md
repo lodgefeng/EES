@@ -129,10 +129,6 @@ repair_main_py_button05.bat
 
 这会移除损坏的源码补丁。按钮 05 仍通过 `launcher_entry` 运行时注入，不需要改 `main.py`。
 
-```text
-AI_EXPERIMENT_JUDGEMENT_MENU_PATCH
-```
-
 ## 手动接入（备用）
 
 ```python
