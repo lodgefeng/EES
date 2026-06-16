@@ -23,6 +23,7 @@ _GITHUB_RAW_BASE = (
     "/feature/ai_experiment_judgement/app"
 )
 _PATCH_FILES = (
+    "creolight_startup.py",
     "patch_sync.py",
     "run_patched_app.py",
     "home_menu_patch.py",

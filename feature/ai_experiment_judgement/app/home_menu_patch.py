@@ -75,6 +75,63 @@ def activate_menu_patch_runtime() -> None:
     QApplication.__init__ = patched_init  # type: ignore[method-assign]
     _RUNTIME_HOOKED = True
     _log(f"runtime hook activated from {__file__}")
+    _start_overlay_worker()
+
+
+def _start_overlay_worker() -> None:
+    def tick(attempt: int = 0) -> None:
+        app = QApplication.instance()
+        if app is None:
+            if attempt < 80:
+                QTimer.singleShot(250, lambda: tick(attempt + 1))
+            return
+
+        for widget in _iter_home_windows(app):
+            if not widget.isVisible():
+                continue
+            install_home_menu_buttons(widget)
+            _install_floating_menu_buttons(widget)
+
+        if not _any_patch_buttons_visible(app) and attempt < 160:
+            QTimer.singleShot(500, lambda: tick(attempt + 1))
+
+    QTimer.singleShot(0, lambda: tick(0))
+
+
+def _iter_home_windows(app: QApplication) -> List[QWidget]:
+    windows: List[QWidget] = []
+    seen = set()
+    for widget in app.topLevelWidgets():
+        if id(widget) in seen:
+            continue
+        seen.add(id(widget))
+        windows.append(widget)
+        if isinstance(widget, QMainWindow):
+            central = widget.centralWidget()
+            if central is not None and id(central) not in seen:
+                seen.add(id(central))
+                windows.append(central)
+    windows.sort(key=_home_window_score, reverse=True)
+    return windows
+
+
+def _home_window_score(widget: QWidget) -> int:
+    title = widget.windowTitle() or ""
+    score = 0
+    if widget.isWindow():
+        score += 10
+    if "光创元" in title or "Creolight" in title or "AR" in title:
+        score += 100
+    if widget.width() >= 800 and widget.height() >= 600:
+        score += 20
+    return score
+
+
+def _any_patch_buttons_visible(app: QApplication) -> bool:
+    for widget in app.topLevelWidgets():
+        if _buttons_ready(widget):
+            return True
+    return False
 
 
 def install_home_menu_buttons(main_window: QWidget) -> bool:
@@ -244,6 +301,8 @@ def _buttons_ready_and_aligned(main_window: QWidget) -> bool:
         if button is None or not button.isVisible():
             return False
         if panel is not None and button.parentWidget() == panel:
+            continue
+        if button.parentWidget() == main_window:
             continue
 
         layout_stack = _find_menu_button_stack(main_window)
@@ -986,6 +1045,77 @@ def _install_overlay_buttons(main_window: QWidget) -> bool:
         _log("overlay menu buttons 05/06 installed")
         return True
     return False
+
+
+def _install_floating_menu_buttons(main_window: QWidget) -> bool:
+    if _buttons_ready(main_window):
+        return True
+
+    width = main_window.width()
+    height = main_window.height()
+    if width < 300 or height < 300:
+        width = 1024
+        height = 768
+
+    button_width = max(int(width * 0.42), 320)
+    button_height = 70
+    button_x = max(int(width * 0.30), 40)
+    button_y = max(int(height * 0.58), 320)
+    gap = 14
+
+    menu_buttons: Tuple[Tuple[str, str, Callable[[QWidget, QWidget], None]], ...] = (
+        (PATCH_MARKER_05, BUTTON_05_TEXT, _open_ar_imaging_adjustment),
+        (PATCH_MARKER_06, BUTTON_06_TEXT, _open_ai_experiment_llm_judgement),
+    )
+
+    changed = False
+    for index, (marker, text, opener) in enumerate(menu_buttons):
+        attr_name = f"_creolight_float_{marker}"
+        button = getattr(main_window, attr_name, None)
+        if not isinstance(button, QPushButton):
+            button = QPushButton(text, main_window)
+            setattr(main_window, attr_name, button)
+            button.setObjectName(marker.lower())
+
+        y_pos = button_y + index * (button_height + gap)
+        button.setGeometry(button_x, y_pos, button_width, button_height)
+        button.setStyleSheet(_floating_button_style(index))
+        button.setCursor(Qt.PointingHandCursor)
+        _rewire_button(button, opener, main_window)
+        button.show()
+        button.raise_()
+        setattr(main_window, marker, True)
+        changed = True
+
+    if changed:
+        _log(
+            "floating menu buttons 05/06 installed at "
+            f"({button_x},{button_y},{button_width}x{button_height})"
+        )
+        return True
+    return False
+
+
+def _floating_button_style(index: int) -> str:
+    if index == 0:
+        start, end = "#5dade2", "#2e86c1"
+        hover_start, hover_end = "#7fb3e8", "#3498db"
+    else:
+        start, end = "#58d68d", "#1e8449"
+        hover_start, hover_end = "#7dcea0", "#239b56"
+    return (
+        "QPushButton {"
+        "border: none;"
+        "border-radius: 24px;"
+        "color: white;"
+        "font-size: 20px;"
+        "font-weight: bold;"
+        f"background-color: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {start},stop:1 {end});"
+        "}"
+        "QPushButton:hover {"
+        f"background-color: qlineargradient(x1:0,y1:0,x2:1,y2:1,stop:0 {hover_start},stop:1 {hover_end});"
+        "}"
+    )
 
 
 def _find_visual_anchor_widget(root: QWidget) -> Optional[QWidget]:

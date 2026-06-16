@@ -70,10 +70,13 @@ if /I "%ENTRY%"=="app\camera_ollama.py" set "MODULE=app.camera_ollama"
 if /I "%ENTRY%"=="src\main.py" set "MODULE=src.main"
 if /I "%ENTRY%"=="src\app.py" set "MODULE=src.app"
 
-if /I "%MODULE%"=="app.launcher_entry" (
-  if exist "%PATCH_RUNTIME%\run_patched_app.py" (
-    call :log "Using LOCALAPPDATA run_patched_app.py"
+    if /I "%MODULE%"=="app.launcher_entry" (
+  if exist "%PATCH_RUNTIME%\creolight_startup.py" (
+    set "USE_PYTHONSTARTUP=1"
+    call :log "Using PYTHONSTARTUP patch hook"
+  ) else if exist "%PATCH_RUNTIME%\run_patched_app.py" (
     set "RUN_PATCHED=1"
+    call :log "Using LOCALAPPDATA run_patched_app.py"
   ) else if not exist "%PATCH_APP%\launcher_entry.py" if not exist "%APP_DIR%\app\launcher_entry.py" (
     set "MODULE=app.main"
     call :log "launcher_entry missing; starting app.main without patch hook."
@@ -82,7 +85,13 @@ if /I "%MODULE%"=="app.launcher_entry" (
   )
 )
 
-if defined RUN_PATCHED (
+if defined USE_PYTHONSTARTUP (
+  set "CREOLIGHT_APP_DIR=%APP_DIR%"
+  set "CREOLIGHT_PATCH_RUNTIME=%PATCH_RUNTIME%"
+  set "PYTHONSTARTUP=%PATCH_RUNTIME%\creolight_startup.py"
+  call :log "Starting app.main with PYTHONSTARTUP=%PYTHONSTARTUP%"
+  "%VENV_PY%" -m app.main >> "%LOG_FILE%" 2>&1
+) else if defined RUN_PATCHED (
   set "CREOLIGHT_APP_DIR=%APP_DIR%"
   set "CREOLIGHT_PATCH_RUNTIME=%PATCH_RUNTIME%"
   call :log "Starting patched runner: %PATCH_RUNTIME%\run_patched_app.py"
@@ -114,9 +123,16 @@ exit /b 0
 
 :sync_patch_modules
 call :log "Syncing patch modules from GitHub to LOCALAPPDATA..."
-for %%F in (patch_sync.py launcher_entry.py home_menu_patch.py ar_imaging_adjustment.py ai_experiment_llm_judgement.py experiment_shared.py ollama_vision_client.py jbd4020_cast_support.py ai_experiment_judgement.py) do (
+for %%F in (creolight_startup.py patch_sync.py launcher_entry.py home_menu_patch.py ar_imaging_adjustment.py ai_experiment_llm_judgement.py experiment_shared.py ollama_vision_client.py jbd4020_cast_support.py ai_experiment_judgement.py) do (
   call :download_patch_file %%F
 )
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ErrorActionPreference='SilentlyContinue';" ^
+  "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^
+  "$u='%PATCH_RAW%/creolight_startup.py';" ^
+  "$o='%PATCH_RUNTIME%\creolight_startup.py';" ^
+  "try { Invoke-WebRequest -Uri $u -OutFile $o -UseBasicParsing; exit 0 } catch { exit 1 }" >nul 2>&1
+if not errorlevel 1 call :log "  patch synced: creolight_startup.py"
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ErrorActionPreference='SilentlyContinue';" ^
   "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12;" ^

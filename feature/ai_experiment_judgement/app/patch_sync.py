@@ -15,6 +15,7 @@ GITHUB_RAW_BASE = (
     "/feature/ai_experiment_judgement/app"
 )
 PATCH_FILES = (
+    "creolight_startup.py",
     "home_menu_patch.py",
     "patch_sync.py",
     "run_patched_app.py",
@@ -50,10 +51,15 @@ def install_patch_path() -> Path:
 
 def sync_patch_modules(log_fn=None) -> int:
     target_dir = patch_app_dir()
+    root = patch_runtime_root()
     target_dir.mkdir(parents=True, exist_ok=True)
+    root.mkdir(parents=True, exist_ok=True)
     updated = 0
     for filename in PATCH_FILES:
-        destination = target_dir / filename
+        if filename == "creolight_startup.py":
+            destination = root / filename
+        else:
+            destination = target_dir / filename
         url = f"{GITHUB_RAW_BASE}/{filename}"
         try:
             request = urllib.request.Request(
