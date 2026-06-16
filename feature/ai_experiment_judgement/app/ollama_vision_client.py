@@ -3,20 +3,18 @@
 
 from __future__ import annotations
 
+import base64
 import json
 from typing import Any, Optional
 
 import requests
 
-
-def build_judgement_prompt(region_count: int) -> str:
-    return (
-        "你是光学实验摆放判断助手。"
-        "第一张是实时画面（已用编号圆圈标出疑似差异），第二张是标准摆放参考图。"
-        f"程序检测到约 {region_count} 处疑似差异。"
-        "请对比两张图，说明主要差异在哪里、学生摆放哪里可能不正确，"
-        "并给出简短整改建议。使用中文，条理清晰。"
-    )
+try:
+    import cv2
+    import numpy as np
+except ImportError:  # pragma: no cover - runtime dependency in app venv
+    cv2 = None
+    np = None
 
 
 def judge_images_with_ollama(
@@ -28,26 +26,42 @@ def judge_images_with_ollama(
     region_count: int,
     timeout: int = 180,
 ) -> str:
-    prompt = build_judgement_prompt(region_count)
     endpoint = endpoint.rstrip("/")
     model = model.strip() or guess_vision_model(endpoint) or "qwen3-vl:2b"
+    composite_b64 = _compose_comparison_b64(current_b64, reference_b64)
+    prompt = build_judgement_prompt(region_count, single_image=True)
 
     app_result = _try_app_ollama_vl(prompt, current_b64, reference_b64, model)
     if app_result:
         return app_result
 
     errors: list[str] = []
-    for caller in (_call_chat_api, _call_generate_api):
+    strategies = (
+        ("chat-single-composite", lambda: _call_chat_api(
+            endpoint=endpoint, model=model, prompt=prompt,
+            images=[composite_b64], timeout=timeout,
+        )),
+        ("chat-single-current", lambda: _call_chat_api(
+            endpoint=endpoint, model=model, prompt=prompt,
+            images=[current_b64], timeout=timeout,
+        )),
+        ("chat-two-turn", lambda: _call_chat_two_turn_api(
+            endpoint=endpoint, model=model, prompt=prompt,
+            reference_b64=reference_b64, current_b64=current_b64, timeout=timeout,
+        )),
+        ("generate-single-composite", lambda: _call_generate_api(
+            endpoint=endpoint, model=model, prompt=prompt,
+            images=[composite_b64], timeout=timeout,
+        )),
+    )
+    for name, caller in strategies:
         try:
-            return caller(
-                endpoint=endpoint,
-                model=model,
-                prompt=prompt,
-                images=[current_b64, reference_b64],
-                timeout=timeout,
-            )
+            result = caller()
+            _log_attempt(name, True)
+            return result
         except Exception as exc:  # noqa: BLE001
-            errors.append(str(exc))
+            _log_attempt(name, False, exc)
+            errors.append(f"{name}: {exc}")
 
     installed = list_installed_models(endpoint)
     hint = ""
@@ -59,6 +73,7 @@ def judge_images_with_ollama(
         "无法调用 Ollama 视觉接口。\n"
         + "\n".join(errors)
         + (f"\n{hint}" if hint else "")
+        + "\n提示：qwen3-vl 通常一次只支持 1 张图片，程序已自动拼接对比图重试。"
     )
 
 
@@ -114,19 +129,56 @@ def _call_chat_api(
             {
                 "role": "user",
                 "content": prompt,
-                "images": images,
+                "images": images[:1],
             }
         ],
         "stream": False,
     }
     response = requests.post(f"{endpoint}/api/chat", json=payload, timeout=timeout)
-    response.raise_for_status()
+    if not response.ok:
+        raise RuntimeError(_format_http_error("chat", response))
     data = response.json()
     message = data.get("message", {})
     text = str(message.get("content", "")).strip()
     if text:
         return text
     raise RuntimeError("Ollama /api/chat returned empty content.")
+
+
+def _call_chat_two_turn_api(
+    *,
+    endpoint: str,
+    model: str,
+    prompt: str,
+    reference_b64: str,
+    current_b64: str,
+    timeout: int,
+) -> str:
+    payload = {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": "这是标准摆放参考图，请先记住它。",
+                "images": [reference_b64],
+            },
+            {
+                "role": "user",
+                "content": prompt,
+                "images": [current_b64],
+            },
+        ],
+        "stream": False,
+    }
+    response = requests.post(f"{endpoint}/api/chat", json=payload, timeout=timeout)
+    if not response.ok:
+        raise RuntimeError(_format_http_error("chat-two-turn", response))
+    data = response.json()
+    message = data.get("message", {})
+    text = str(message.get("content", "")).strip()
+    if text:
+        return text
+    raise RuntimeError("Ollama two-turn /api/chat returned empty content.")
 
 
 def _call_generate_api(
@@ -140,16 +192,64 @@ def _call_generate_api(
     payload = {
         "model": model,
         "prompt": prompt,
-        "images": images,
+        "images": images[:1],
         "stream": False,
     }
     response = requests.post(f"{endpoint}/api/generate", json=payload, timeout=timeout)
-    response.raise_for_status()
+    if not response.ok:
+        raise RuntimeError(_format_http_error("generate", response))
     data = response.json()
     text = str(data.get("response", "")).strip()
     if text:
         return text
     raise RuntimeError("Ollama /api/generate returned empty response.")
+
+
+def _compose_comparison_b64(current_b64: str, reference_b64: str) -> str:
+    if cv2 is None or np is None:
+        return current_b64
+    current = _b64_to_image(current_b64)
+    reference = _b64_to_image(reference_b64)
+    if current is None or reference is None:
+        return current_b64
+
+    target_h = max(current.shape[0], reference.shape[0])
+
+    def resize_to_height(image: np.ndarray) -> np.ndarray:
+        scale = target_h / max(1, image.shape[0])
+        width = max(1, int(image.shape[1] * scale))
+        return cv2.resize(image, (width, target_h))
+
+    left = resize_to_height(current)
+    right = resize_to_height(reference)
+    gap = np.full((target_h, 24, 3), 255, dtype=np.uint8)
+    combined = np.hstack([left, gap, right])
+    ok, encoded = cv2.imencode(".jpg", combined, [int(cv2.IMWRITE_JPEG_QUALITY), 88])
+    if not ok:
+        return current_b64
+    return base64.b64encode(encoded.tobytes()).decode("ascii")
+
+
+def _b64_to_image(image_b64: str) -> Optional["np.ndarray"]:
+    if np is None or cv2 is None:
+        return None
+    try:
+        raw = base64.b64decode(image_b64)
+        arr = np.frombuffer(raw, dtype=np.uint8)
+        return cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _format_http_error(api_name: str, response: requests.Response) -> str:
+    body = response.text.strip()
+    if len(body) > 300:
+        body = body[:300] + "..."
+    return f"{response.status_code} {api_name} error: {body or response.reason}"
+
+
+def _log_attempt(name: str, ok: bool, exc: Exception | None = None) -> None:
+    pass
 
 
 def _try_app_ollama_vl(prompt: str, current_b64: str, reference_b64: str, model: str) -> Optional[str]:

@@ -255,7 +255,7 @@ class AIExperimentLLMJudgementWidget(QWidget, CameraMixin):
 
         self.result_text.setPlainText(
             f"正在调用 Ollama 模型 {model} 分析差异...\n"
-            "优先使用 /api/chat 接口（适配 qwen-vl 等多模态模型）。"
+            "qwen3-vl 一次只支持 1 张图片，程序会自动拼接左右对比图后请求。"
         )
         self._worker = OllamaJudgeWorker(
             model=model,
